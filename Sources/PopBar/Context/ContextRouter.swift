@@ -37,6 +37,9 @@ final class ContextRouter {
     private var snapshotElement: AXUIElement?
     /// Bumped on every open/close so a stale async read is discarded.
     private var generation = 0
+    /// Guards against re-entrant closes (hiding a panel can post a resign-key
+    /// notification that asks to close again).
+    private var isClosing = false
 
     init(llm: LLMService, actionStore: ActionStore, store: ClipboardStore) {
         self.store = store
@@ -98,6 +101,9 @@ final class ContextRouter {
     /// Close every Mtool surface and return to the hidden state. Safe to call from
     /// any scene.
     func closeAll() {
+        guard !isClosing else { return }
+        isClosing = true
+        defer { isClosing = false }
         generation &+= 1
         clipboard.hide()
         search.hide()

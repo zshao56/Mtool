@@ -84,11 +84,23 @@ final class ClipboardPanelController {
     private func installEscMonitor() {
         guard escapeMonitor == nil else { return }
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 {   // Esc
-                self?.onCloseRequested?()
+            guard let self else { return event }
+            switch event.keyCode {
+            case 53:   // Esc
+                self.onCloseRequested?()
                 return nil
+            case 126:  // Up
+                self.model.moveSelection(-1)
+                return nil
+            case 125:  // Down
+                self.model.moveSelection(1)
+                return nil
+            case 36, 76:   // Return / Enter
+                self.model.activateSelection()
+                return nil
+            default:
+                return event
             }
-            return event
         }
     }
 

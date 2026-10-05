@@ -8,6 +8,8 @@ final class ClipboardPanelModel: ObservableObject {
     @Published var items: [ClipboardItem] = []
     @Published var snippets: [Snippet] = []
     @Published var paused: Bool = ClipboardPreferences.paused
+    /// The row highlighted for keyboard navigation.
+    @Published var selectedID: Int64?
 
     let store: ClipboardStore
 
@@ -26,6 +28,25 @@ final class ClipboardPanelModel: ObservableObject {
         items = store.items(matching: query, limit: 200)
         snippets = store.snippets()
         paused = ClipboardPreferences.paused
+        if let selectedID, items.contains(where: { $0.id == selectedID }) {
+            // keep the selection
+        } else {
+            selectedID = items.first?.id
+        }
+    }
+
+    /// Move the keyboard selection by `delta` rows (wrapping).
+    func moveSelection(_ delta: Int) {
+        guard !items.isEmpty else { return }
+        let current = items.firstIndex { $0.id == selectedID } ?? (delta > 0 ? -1 : 0)
+        let next = min(max(current + delta, 0), items.count - 1)
+        selectedID = items[next].id
+    }
+
+    /// Paste the highlighted row (Return).
+    func activateSelection() {
+        guard let item = items.first(where: { $0.id == selectedID }) ?? items.first else { return }
+        onPaste?(item)
     }
 
     func setQuery(_ text: String) {
@@ -43,7 +64,6 @@ final class ClipboardPanelModel: ObservableObject {
 /// then the local history. Keyboard: ↑/↓ move, Return pastes, Esc closes.
 struct ClipboardPanelView: View {
     @ObservedObject var model: ClipboardPanelModel
-    @State private var selectedID: Int64?
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -150,7 +170,7 @@ struct ClipboardPanelView: View {
                 if let trailing { trailing }
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(selectedID == id ? Color.accentColor.opacity(0.12) : Color.clear)
+            .background(model.selectedID == id ? Color.accentColor.opacity(0.12) : Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
