@@ -128,6 +128,7 @@ final class PopBarStore: ObservableObject {
         if trusted && !controller.isRunning {
             controller.start()
         }
+        if trusted { controller.startDoubleCommandIfEnabled() }
         // The Screen Recording grant can also change in System Settings while we run;
         // reflect it so the OCR permission row auto-hides once it's granted.
         let screenRec = ScreenRecordingAuthorizer.isAuthorized

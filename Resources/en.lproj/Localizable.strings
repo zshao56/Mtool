@@ -654,6 +654,9 @@
 "search.hint" = "Type a question, choose a mode, and press Return. Use the Screenshot button to copy a region of the screen as an image.";
 "search.screenshot" = "Screenshot";
 "search.copyResult" = "Copy the result";
+"search.clipboard" = "Clipboard";
+"search.editModes" = "Customize AI modes and prompts";
+"search.askPrompt.title" = "Free question prompt";
 "screenshot.copy.done" = "Screenshot copied";
 "screenshot.copy.failed" = "Could not capture the screen";
 

@@ -58,6 +58,7 @@ final class PopBarController {
     /// A popup's Settings action was used. The menu bar controller answers it,
     /// since it owns the settings window.
     var onSettingsRequested: (() -> Void)?
+    var onActionsSettingsRequested: (() -> Void)?
 
     init(llm: LLMService, actionStore: ActionStore) {
         self.llm = llm
@@ -86,6 +87,7 @@ final class PopBarController {
 
         router.isSelectionVisible = { [weak self] in self?.windows.transientIsShowingActions ?? false }
         router.onResolveRequested = { [weak self] in self?.routeMainHotKey() }
+        router.search.onEditModesRequested = { [weak self] in self?.onActionsSettingsRequested?() }
         router.presentSelection = { [weak self] result, anchor, pid in
             guard let self else { return }
             self.windows.showTransient(

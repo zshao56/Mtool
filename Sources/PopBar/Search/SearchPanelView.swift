@@ -19,11 +19,11 @@ struct SearchMode: Identifiable, Equatable {
     let title: String
     let prompt: String
     let isAsk: Bool
+    let modelOverride: ModelOverride?
 
     static func askMode() -> SearchMode {
         SearchMode(id: "ask", title: L("search.mode.ask"),
-                   prompt: "You are a helpful, concise assistant. Answer the user's request directly.",
-                   isAsk: true)
+                   prompt: MtoolPreferences.askPrompt, isAsk: true, modelOverride: nil)
     }
 }
 
@@ -35,9 +35,13 @@ final class SearchPanelModel: ObservableObject {
     @Published var result: String = ""
     @Published var busy: Bool = false
     @Published var error: String?
+    @Published var showsClipboardButton = false
+    @Published var focusRequestID = UUID()
 
     var onClose: (() -> Void)?
     var onScreenshot: (() -> Void)?
+    var onClipboard: (() -> Void)?
+    var onEditModes: (() -> Void)?
     var onSubmit: ((String, SearchMode) -> Void)?
     var onResize: (() -> Void)?
 
@@ -49,6 +53,7 @@ final class SearchPanelModel: ObservableObject {
 
     func resetForOpen() {
         query = ""
+        focusRequestID = UUID()
         result = ""
         error = nil
         busy = false
@@ -57,10 +62,12 @@ final class SearchPanelModel: ObservableObject {
 
     func loadModes(from actions: [PopBarActionConfig]) {
         var modes: [SearchMode] = [SearchMode.askMode()]
-        for action in actions where action.kind == .ai && !action.isUnsupported {
+        for action in actions.flatMap({ $0.kind == .group ? $0.children : [$0] })
+            where action.kind == .ai && !action.isUnsupported {
             let prompt = action.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !prompt.isEmpty else { continue }
-            modes.append(SearchMode(id: action.id, title: action.title, prompt: prompt, isAsk: false))
+            modes.append(SearchMode(id: action.id, title: action.title, prompt: prompt,
+                                    isAsk: false, modelOverride: action.modelOverride))
         }
         self.modes = modes
         if !modes.contains(where: { $0.id == selectedModeID }) {
@@ -98,15 +105,29 @@ struct SearchPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            HStack {
+                FloatingPanelDragHandle()
+                    .frame(height: 15)
+                    .overlay {
+                        Capsule().fill(Color.secondary.opacity(0.35))
+                            .frame(width: 30, height: 4)
+                            .allowsHitTesting(false)
+                    }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 3)
+
             TextField(L("search.placeholder"), text: $model.query, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 19))
                 .lineLimit(1...3)
                 .focused($queryFocused)
+                .id(model.focusRequestID)
+                .onAppear { queryFocused = true }
                 .onSubmit { model.submit() }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.horizontal, 24)
-                .padding(.top, 23)
+                .padding(.top, 5)
 
             HStack(spacing: 10) {
                 Button { model.onScreenshot?() } label: {
@@ -115,6 +136,15 @@ struct SearchPanelView: View {
                 }
                 .buttonStyle(.plain)
                 .help(L("search.screenshot"))
+
+                if model.showsClipboardButton {
+                    Button { model.onClipboard?() } label: {
+                        Label(L("search.clipboard"), systemImage: "doc.on.clipboard")
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .help(L("search.clipboard"))
+                }
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
@@ -136,6 +166,13 @@ struct SearchPanelView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
+
+                Button { model.onEditModes?() } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 13))
+                }
+                .buttonStyle(.plain)
+                .help(L("search.editModes"))
 
                 if model.busy { ProgressView().controlSize(.small) }
                 Button { model.submit() } label: {
@@ -182,6 +219,15 @@ struct SearchPanelView: View {
                height: model.showsOutput ? SearchPanelLayout.expandedHeight : SearchPanelLayout.compactHeight)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .onAppear { queryFocused = true }
+    }
+}
+
+/// A dedicated drag strip, clear of the text field and mode buttons.
+private struct FloatingPanelDragHandle: NSViewRepresentable {
+    func makeNSView(context: Context) -> DragView { DragView() }
+    func updateNSView(_ nsView: DragView, context: Context) {}
+
+    final class DragView: NSView {
+        override func mouseDown(with event: NSEvent) { window?.performWindowDrag(with: event) }
     }
 }

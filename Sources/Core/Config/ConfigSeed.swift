@@ -49,6 +49,7 @@ enum ConfigSeed {
         doc.set(path: "main.autoPopupDelayMs", to: .number(300))
         doc.set(path: "main.doubleCommandEnabled", to: .bool(false))
         doc.set(path: "main.doubleCommandThresholdMs", to: .number(350))
+        doc.set(path: "search.askPrompt", to: .string(MtoolPreferences.defaultAskPrompt))
 
         // ── Mtool: clipboard history + snippets ───────────────────────────────
         doc.set(path: "clipboard.enabled", to: .bool(true))

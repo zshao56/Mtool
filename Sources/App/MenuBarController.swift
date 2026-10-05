@@ -40,6 +40,14 @@ final class MenuBarController: NSObject {
         appState.controller.onSettingsRequested = { [weak self] in
             DispatchQueue.main.async { self?.showMainWindow() }
         }
+        appState.controller.onActionsSettingsRequested = { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.appState.controller.router.closeAll()
+                self.appState.selection = .actions
+                self.showMainWindow()
+            }
+        }
     }
 
     // MARK: - Setup

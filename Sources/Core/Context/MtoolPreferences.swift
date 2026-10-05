@@ -13,6 +13,7 @@ enum MtoolPreferences {
         static let doubleCommandMs     = "main.doubleCommandThresholdMs"
         static let autoPopupOnSelect   = "main.autoPopupOnSelect"
         static let autoPopupDelayMs    = "main.autoPopupDelayMs"
+        static let askPrompt           = "search.askPrompt"
     }
 
     private static var config: ConfigStore { .shared }
@@ -77,5 +78,12 @@ enum MtoolPreferences {
     static var autoPopupDelay: TimeInterval {
         get { config.double(P.autoPopupDelayMs, default: 300) / 1000 }
         set { config.set(P.autoPopupDelayMs, newValue * 1000) }
+    }
+
+    static let defaultAskPrompt = "You are a helpful, concise assistant. Answer the user's request directly."
+
+    static var askPrompt: String {
+        get { config.string(P.askPrompt, default: defaultAskPrompt) }
+        set { config.set(P.askPrompt, newValue) }
     }
 }

@@ -61,6 +61,7 @@ final class ContextRouter {
         }
         clipboard.onCloseRequested = { [weak self] in self?.closeAll() }
         search.onCloseRequested = { [weak self] in self?.closeAll() }
+        search.onClipboardRequested = { [weak self] in self?.showClipboardFromSearch() }
         watcher.onChange = { [weak self] in
             guard let self, self.clipboard.isVisible else { return }
             self.clipboard.model.reload()
@@ -124,6 +125,14 @@ final class ContextRouter {
         clipboard.show(near: NSEvent.mouseLocation)
     }
 
+    /// Switch from the editable-context question box to clipboard history while
+    /// retaining the captured input element for a validated paste.
+    private func showClipboardFromSearch() {
+        guard scene == .clipboard else { return }
+        search.hide()
+        clipboard.show(near: NSEvent.mouseLocation)
+    }
+
     // MARK: - Routing
 
     /// Called by `PopBarController` once the selection read has finished.
@@ -159,7 +168,7 @@ final class ContextRouter {
                 presentSelection?(result, anchor, snap.frontAppPID.map { pid_t($0) })
             }
         case .clipboard:
-            clipboard.show(near: anchor)
+            search.show(near: anchor, allowsClipboard: true)
         case .search:
             search.show(near: anchor)
         case .hidden:

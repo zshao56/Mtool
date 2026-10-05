@@ -14,11 +14,12 @@ final class SearchPanelController {
     private let screenshot: ScreenshotCopyController
     private var panel: MtoolFloatingPanel?
     private var escapeMonitor: Any?
-    private var resignObserver: NSObjectProtocol?
     private var streamTask: Task<Void, Never>?
     private var lastAnchor: CGPoint?
 
     var onCloseRequested: (() -> Void)?
+    var onClipboardRequested: (() -> Void)?
+    var onEditModesRequested: (() -> Void)?
 
     init(llm: LLMService, actionStore: ActionStore, screenshot: ScreenshotCopyController) {
         self.llm = llm
@@ -27,15 +28,18 @@ final class SearchPanelController {
         model.onClose = { [weak self] in self?.onCloseRequested?() }
         model.onSubmit = { [weak self] text, mode in self?.run(text: text, mode: mode) }
         model.onScreenshot = { [weak self] in self?.beginScreenshot() }
+        model.onClipboard = { [weak self] in self?.onClipboardRequested?() }
+        model.onEditModes = { [weak self] in self?.onEditModesRequested?() }
         model.onResize = { [weak self] in self?.resizePanel() }
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
-    func show(near anchor: CGPoint) {
+    func show(near anchor: CGPoint, allowsClipboard: Bool = false) {
         let panel = ensurePanel()
         lastAnchor = anchor
         model.resetForOpen()
+        model.showsClipboardButton = allowsClipboard
         // Refresh the mode list from the current actions each time it opens.
         model.loadModes(from: actionStore.actions)
         position(panel, near: anchor)
@@ -67,7 +71,10 @@ final class SearchPanelController {
     // MARK: - LLM
 
     private func run(text: String, mode: SearchMode) {
-        guard let config = llm.defaultConfig() else {
+        let config = mode.modelOverride.flatMap {
+            llm.config(forProvider: $0.provider, model: $0.model, effort: $0.reasoningEffort)
+        } ?? (mode.modelOverride == nil ? llm.defaultConfig() : nil)
+        guard let config else {
             model.finish(result: nil, error: L("popbar.error.nokey"))
             return
         }
@@ -103,13 +110,9 @@ final class SearchPanelController {
         panel.contentView?.layer?.cornerRadius = 24
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.animationBehavior = .utilityWindow
         self.panel = panel
-        resignObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
-        ) { [weak self] _ in
-            self?.onCloseRequested?()
-        }
         return panel
     }
 
@@ -119,7 +122,7 @@ final class SearchPanelController {
         let current = panel.contentRect(forFrameRect: panel.frame).size
         guard current != target else { return }
         panel.setContentSize(target)
-        if let lastAnchor { position(panel, near: lastAnchor) }
+        clampToVisibleScreen(panel)
     }
 
     private func position(_ panel: NSPanel, near anchor: CGPoint) {
@@ -132,6 +135,21 @@ final class SearchPanelController {
         if y + size.height > frame.maxY - 8 { y = frame.maxY - size.height - 8 }
         if y < frame.minY + 8 { y = frame.minY + 8 }
         x = min(max(x, frame.minX + 8), frame.maxX - size.width - 8)
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    private func clampToVisibleScreen(_ panel: NSPanel) {
+        let frame = panel.frame
+        let screen = NSScreen.screens.filter { $0.frame.intersects(frame) }.max { lhs, rhs in
+            let lhsArea = lhs.frame.intersection(frame)
+            let rhsArea = rhs.frame.intersection(frame)
+            return lhsArea.width * lhsArea.height < rhsArea.width * rhsArea.height
+        }
+            ?? lastAnchor.flatMap { anchor in NSScreen.screens.first { $0.frame.contains(anchor) } }
+            ?? NSScreen.main
+        guard let visible = screen?.visibleFrame else { return }
+        let x = min(max(frame.minX, visible.minX + 8), visible.maxX - frame.width - 8)
+        let y = min(max(frame.minY, visible.minY + 8), visible.maxY - frame.height - 8)
         panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
@@ -153,6 +171,5 @@ final class SearchPanelController {
 
     deinit {
         removeEscMonitor()
-        if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
     }
 }

@@ -44,6 +44,16 @@ enum ConfigSchema {
           "additionalProperties": true
         },
 
+        "search": {
+          "type": "object",
+          "description": "The floating question box used when there is no selected text.",
+          "properties": {
+            "askPrompt": { "type": "string",
+              "description": "System prompt for the built-in free-question mode. Other modes use the editable AI action prompts." }
+          },
+          "additionalProperties": true
+        },
+
         "clipboard": {
           "type": "object",
           "description": "The local clipboard history and snippets. Everything stays on this Mac.",

@@ -653,6 +653,9 @@
 "search.hint" = "输入问题，选择模式后按回车。点击“截图”可框选并复制图片。";
 "search.screenshot" = "截图";
 "search.copyResult" = "复制结果";
+"search.clipboard" = "剪贴板";
+"search.editModes" = "自定义 AI 按钮和提示词";
+"search.askPrompt.title" = "自由提问提示词";
 "screenshot.copy.done" = "截图已复制";
 "screenshot.copy.failed" = "无法截取屏幕";
 

@@ -14,6 +14,7 @@ struct ActionsPage: View {
     @State private var editingSource: Analytics.ActionSource?
     @State private var previewFallback = PopBarPreferences.previewFallbackToSearch
     @State private var previewEngine = PopBarPreferences.previewSearchEngine
+    @State private var askPrompt = MtoolPreferences.askPrompt
 
     init(actions: ActionStore, llm: LLMService) {
         _actions = ObservedObject(wrappedValue: actions)
@@ -22,6 +23,14 @@ struct ActionsPage: View {
 
     var body: some View {
         Form {
+            Section(L("search.askPrompt.title")) {
+                TextEditor(text: Binding(get: { askPrompt }, set: {
+                    askPrompt = $0
+                    MtoolPreferences.askPrompt = $0
+                }))
+                .font(.system(size: 12, design: .monospaced))
+                .frame(minHeight: 74)
+            }
             actionsSection
             // Only shown once such an action exists — a setting for a feature you
             // are not using is noise.

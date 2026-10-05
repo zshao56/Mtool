@@ -24,7 +24,7 @@ to be updated as work lands.
 - **Local compilation environment**: The local development machine only has Xcode
   CommandLineTools (no full `Xcode.app`), so local app compilation and local `xcodebuild`
   are not available. All builds and automated tests currently run on GitHub Actions macOS runners.
-- **No real-desktop acceptance has been done**: The 34 checklist items in
+- **No real-desktop acceptance has been done**: The 37 checklist items in
   `docs/ACCEPTANCE.md` are **unrun**. CI build and test success proves compilation,
   packaging integrity, and unit logic, but **must NOT be conflated with real-world functional
   desktop acceptance**. Actual cross-application Accessibility permissions, system focus
