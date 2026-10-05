@@ -59,7 +59,7 @@ final class ModifierDoubleTapMonitor {
         })
 
         isRunning = globalFlags != nil
-        Self.log.info("double-Command monitor \(isRunning ? "installed" : "unavailable (no event stream)")")
+        Self.log.info("double-Command monitor \(self.isRunning ? "installed" : "unavailable (no event stream)")")
         onAvailabilityChanged?(isRunning)
     }
 

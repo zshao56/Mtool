@@ -133,7 +133,7 @@ final class ContextRouter {
                anchor: CGPoint) {
         // Ignore a read that belongs to an older generation.
         guard snapshot.generation == generation else {
-            Self.log.debug("discarding stale route (gen \(snapshot.generation) ≠ \(generation))")
+            Self.log.debug("discarding stale route (gen \(snapshot.generation) ≠ \(self.generation))")
             return
         }
         // The read was asynchronous: if the user switched apps while it was in
