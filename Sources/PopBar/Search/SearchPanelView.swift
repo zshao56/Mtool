@@ -228,6 +228,6 @@ private struct FloatingPanelDragHandle: NSViewRepresentable {
     func updateNSView(_ nsView: DragView, context: Context) {}
 
     final class DragView: NSView {
-        override func mouseDown(with event: NSEvent) { window?.performWindowDrag(with: event) }
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
     }
 }
