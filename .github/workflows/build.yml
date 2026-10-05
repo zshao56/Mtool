@@ -1,0 +1,162 @@
+name: Build and Package macOS App
+
+# Mtool is built and tested on GitHub's macOS runners. There are no upstream
+# credentials anywhere in this workflow: by default the app is built unsigned
+# and ad-hoc signed, and the DMG is published as a normal release asset.
+#
+# Optional Developer ID signing/notarization is gated behind secrets the FORK
+# OWNER supplies themselves (MTOOL_*). Without them the job still succeeds and
+# produces an unsigned DMG, which macOS Gatekeeper will ask the user to open via
+# Finder "Open" (right-click → Open). See docs/RELEASING.md.
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || format('ci-{0}', github.ref) }}
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    env:
+      HAS_SIGNING: ${{ secrets.MTOOL_CERT_P12_BASE64 != '' && secrets.MTOOL_CERT_P12_PASSWORD != '' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read app name from project.yml
+        run: |
+          APP_NAME=$(awk '/^name:/ {print $NF; exit}' project.yml)
+          BUNDLE_ID=$(awk '/^  bundleID:/ {print $NF; exit}' project.yml)
+          [ -n "$APP_NAME" ] || { echo "::error::could not read the app name from project.yml"; exit 1; }
+          echo "APP_NAME=$APP_NAME" >> "$GITHUB_ENV"
+          echo "BUNDLE_ID=$BUNDLE_ID" >> "$GITHUB_ENV"
+          echo "app: $APP_NAME   bundle id: $BUNDLE_ID"
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install Build Tools
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Run Tests
+        run: |
+          xcodebuild test \
+            -project ${APP_NAME}.xcodeproj \
+            -scheme "${APP_NAME}" \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO
+
+      # Optional: import the fork owner's own Developer ID certificate. Absent by
+      # default, so the normal path stays fully unsigned.
+      - name: Install signing certificate (optional)
+        if: ${{ env.HAS_SIGNING == 'true' }}
+        env:
+          CERT_P12_BASE64: ${{ secrets.MTOOL_CERT_P12_BASE64 }}
+          CERT_P12_PASSWORD: ${{ secrets.MTOOL_CERT_P12_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/mtool_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/mtool-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$CERT_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+      - name: Build App (Release)
+        run: |
+          xcodebuild -project ${APP_NAME}.xcodeproj \
+            -scheme "${APP_NAME}" \
+            -configuration Release \
+            ARCHS="x86_64 arm64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build \
+            SYMROOT=$(PWD)/build
+
+      - name: Sign App
+        run: |
+          APP_PATH="build/Release/${APP_NAME}.app"
+          # Read the identity straight out of the entitlements, but note: Mtool's
+          # entitlements carry NO restricted keychain-access-groups (that upstream
+          # entitlement needed the original author's provisioning profile and AMFI
+          # would SIGKILL the app without it), so a plain signature is enough.
+          if [ "$HAS_SIGNING" = "true" ]; then
+            IDENTITY=$(security find-identity -v -p codesigning | awk '/Developer ID Application/ {print $2; exit}')
+            [ -n "$IDENTITY" ] || { echo "::error::no Developer ID Application identity found"; exit 1; }
+            echo "Signing with $IDENTITY"
+            codesign --force --options runtime --timestamp \
+              --entitlements Supporting/App.entitlements \
+              --sign "$IDENTITY" "$APP_PATH"
+            codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          else
+            echo "No signing secrets — ad-hoc signing the app"
+            codesign --force --deep --sign - "$APP_PATH" || true
+          fi
+
+      - name: Create DMG
+        run: |
+          cd build/Release
+          rm -f "${APP_NAME}.dmg"
+          mkdir -p dmg-root
+          cp -R "${APP_NAME}.app" dmg-root/
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "${APP_NAME}" \
+            -srcfolder dmg-root \
+            -ov -format UDZO \
+            "${APP_NAME}.dmg"
+          rm -rf dmg-root
+          shasum -a 256 "${APP_NAME}.dmg" | tee "${APP_NAME}.dmg.sha256"
+
+      # Optional notarization, only when the fork owner supplied Apple creds.
+      - name: Notarize (optional)
+        if: ${{ env.HAS_SIGNING == 'true' && secrets.MTOOL_APPLE_ID != '' && secrets.MTOOL_APPLE_TEAM_ID != '' && secrets.MTOOL_APPLE_PASSWORD != '' }}
+        env:
+          APPLE_ID: ${{ secrets.MTOOL_APPLE_ID }}
+          TEAM_ID: ${{ secrets.MTOOL_APPLE_TEAM_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.MTOOL_APPLE_PASSWORD }}
+        run: |
+          xcrun notarytool submit "build/Release/${APP_NAME}.dmg" \
+            --apple-id "$APPLE_ID" --team-id "$TEAM_ID" \
+            --password "$APP_SPECIFIC_PASSWORD" --wait
+          xcrun stapler staple "build/Release/${APP_NAME}.dmg" || true
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-macOS
+          path: |
+            build/Release/${{ env.APP_NAME }}.dmg
+            build/Release/${{ env.APP_NAME }}.dmg.sha256
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: |
+            build/Release/${{ env.APP_NAME }}.dmg
+            build/Release/${{ env.APP_NAME }}.dmg.sha256
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

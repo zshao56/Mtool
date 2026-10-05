@@ -1,0 +1,42 @@
+# ── Xcode / XcodeGen ──────────────────────────────────────────────────────
+# The project file is GENERATED from project.yml — never commit it.
+*.xcodeproj/
+*.xcworkspace/
+!*.xcodeproj/project.xcworkspace/xcshareddata/
+xcuserdata/
+DerivedData/
+build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ── Swift Package Manager ─────────────────────────────────────────────────
+.build/
+.swiftpm/
+Package.resolved
+
+# ── Release artifacts ─────────────────────────────────────────────────────
+*.app
+*.dmg
+*.zip
+appcast.xml
+
+# ── Secrets: never commit signing material or keys ────────────────────────
+*.p12
+*.cer
+*.certSigningRequest
+*.provisionprofile
+*.mobileprovision
+.env
+.env.*
+
+# ── macOS ─────────────────────────────────────────────────────────────────
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# ── Local agent state ─────────────────────────────────────────────────────
+.omo/

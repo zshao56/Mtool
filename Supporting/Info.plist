@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <!-- The product name, and therefore every name the app shows or writes, comes
+         from the build setting. Nothing here spells it out. -->
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+    <!-- Menu-bar-only: no Dock icon, not in Cmd-Tab. The status item is the app's
+         one entry point, so its menu carries Settings and Quit. -->
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Mtool — GPL-3.0. Derived from QDuo © XueshiQiao.</string>
+
+    <!-- Brand values Swift reads back at runtime (Sources/Core/Brand.swift), so
+         no Swift file has to contain a name or a URL. Both are set in project.yml. -->
+    <key>BrandBaseID</key>
+    <string>$(BRAND_BASE_ID)</string>
+    <key>BrandRepoURL</key>
+    <string>$(BRAND_REPO_URL)</string>
+
+    <!-- No SUFeedURL / SUPublicEDKey: Mtool does not ship an auto-updater.
+         Releases are published as DMGs on the GitHub Releases page and users
+         download them by hand. See docs/RELEASING.md. -->
+</dict>
+</plist>

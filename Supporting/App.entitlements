@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Must stay OFF. The app reads the selected text out of whatever app you
+         are in (Accessibility API), watches the mouse and keyboard globally
+         (event taps) and captures the screen for OCR and screenshots. The App
+         Sandbox forbids all three. -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+
+    <!-- No keychain-access-groups.
+         The upstream QDuo build carried that RESTRICTED entitlement and needed
+         the original author's Developer ID provisioning profile to authorize it
+         (Apple TN3125): without a matching embedded profile, AMFI SIGKILLs a
+         hardened-runtime app at launch. Mtool ships without Apple credentials
+         (ad-hoc / unsigned), so it MUST NOT declare the restricted entitlement.
+         API keys are stored as ordinary per-app Keychain items (service
+         <baseID>.llm), which every build can use without a profile. -->
+</dict>
+</plist>

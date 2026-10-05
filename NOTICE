@@ -1,0 +1,49 @@
+Mtool
+=====
+
+This product is a derivative work of QDuo.
+
+  QDuo
+  Copyright (C) XueshiQiao
+  https://github.com/XueshiQiao/qduo
+  Licensed under the GNU General Public License v3.0
+
+Mtool
+  Copyright (C) 2026 zshao56
+  https://github.com/zshao56/Mtool
+  Licensed under the GNU General Public License v3.0
+
+Mtool is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+Mtool is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details. A copy
+of the license is in the LICENSE file.
+
+Summary of modifications (GPL-3.0 §5a)
+-------------------------------------
+
+Starting from the QDuo source, Mtool has been modified as follows:
+
+- Rebranded: product name, bundle identifier, configuration directory, Keychain
+  service, menu-bar text, About page and documentation now refer to Mtool.
+- Removed the upstream Aptabase analytics integration and the Sparkle
+  auto-updater, and removed all references to the upstream author's release
+  infrastructure, update feed, signing certificate and provisioning profile.
+- Removed the restricted `keychain-access-groups` entitlement (which required the
+  upstream author's Developer ID provisioning profile); API keys are now ordinary
+  per-app Keychain items.
+- Added a three-scenario router (`ContextRouter`, `ContextSnapshot`,
+  `FocusedInputInspector`) driven by a configurable main shortcut.
+- Added an optional double-tap Command trigger (`ModifierDoubleTapMonitor` /
+  `ModifierDoubleTapDetector`).
+- Added a local clipboard history with snippets (`ClipboardStore`,
+  `ClipboardWatcher`, `ClipboardPanelController`) and its settings.
+- Added a quick-search panel (`SearchPanelController`) and a screenshot-and-copy
+  action.
+- Replaced the default actions with research-oriented templates (translate,
+  explain, read paper, polish, abstract).
+- Rewrote the GitHub Actions workflow so it builds and packages an unsigned DMG
+  without any upstream secrets.
