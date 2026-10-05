@@ -89,7 +89,8 @@ xcodebuild test -project Mtool.xcodeproj -scheme Mtool -destination 'platform=ma
 ```
 
 CI builds and packages the DMG on a macOS runner; see
-[docs/RELEASING.md](docs/RELEASING.md).
+[docs/RELEASING.md](docs/RELEASING.md). What has and has not been verified is
+recorded in [docs/STATUS.md](docs/STATUS.md).
 
 ## License and attribution
 
