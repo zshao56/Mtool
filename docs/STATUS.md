@@ -5,12 +5,12 @@ to be updated as work lands.
 
 ## Verified
 
-- **Automated CI build and unit tests pass** (commit `a094a42`, GitHub Actions run `37262310203` on 2026-10-05):
+- **Automated CI build and unit tests pass** (commit `b6e589e`, GitHub Actions run `37270196004` on 2026-10-05):
   - `xcodebuild test` executed 156 unit tests with **0 failures** on macOS runner.
   - Release build succeeded (universal binary for `x86_64` and `arm64`).
   - `Mtool.dmg` produced as a workflow artifact; the app uses an ad-hoc signature, not an Apple Developer ID signature.
 - **Artifact integrity verified locally after download**:
-  - `shasum -a 256 -c` verified (SHA-256: `069db596960b61da2c1dccf87ddbf2e7d379907af5d891feba8403eed6d3910a`).
+  - `shasum -a 256 -c` verified (SHA-256: `e2df75e21693ffc0e217650dfd55394081743b9134a049a866c26b76d3c1bb88`).
   - `hdiutil verify` confirmed valid disk image.
   - DMG volume structure contains `Mtool.app` and `/Applications` shortcut.
   - Ad-hoc signature passes `codesign --verify --deep --strict`.
@@ -24,8 +24,8 @@ to be updated as work lands.
 - **Local compilation environment**: The local development machine only has Xcode
   CommandLineTools (no full `Xcode.app`), so local app compilation and local `xcodebuild`
   are not available. All builds and automated tests currently run on GitHub Actions macOS runners.
-- **No real-desktop acceptance has been done**: The 37 checklist items in
-  `docs/ACCEPTANCE.md` are **unrun**. CI build and test success proves compilation,
+- **Formal real-desktop acceptance is incomplete**: The 37 checklist items in
+  `docs/ACCEPTANCE.md` have not been completed. CI build and test success proves compilation,
   packaging integrity, and unit logic, but **must NOT be conflated with real-world functional
   desktop acceptance**. Actual cross-application Accessibility permissions, system focus
   switches, pasteboard restoration, and window behaviors still require manual desktop testing.
