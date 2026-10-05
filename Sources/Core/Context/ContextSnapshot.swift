@@ -23,7 +23,11 @@ struct FocusedInputInfo: Equatable {
     var role: String?
     var subrole: String?
     var enabled: Bool
-    var editable: Bool
+    /// The non-standard `AXEditable` attribute, kept **tri-state**:
+    /// `true` = explicitly editable, `false` = explicitly NOT editable (a
+    /// read-only control; scenario 2 must be refused), `nil` = the attribute is
+    /// absent (common in browsers/Electron) and the role + settability decide.
+    var editable: Bool?
     /// `AXSelectedText` is writable (checked with `AXUIElementIsAttributeSettable`).
     var selectedTextSettable: Bool
     /// `AXValue` is writable — the fallback for controls that expose no
@@ -32,13 +36,13 @@ struct FocusedInputInfo: Equatable {
     /// A password / secure field or the system's secure-input state. Never read.
     var isSecure: Bool
     /// An Electron/browser fallback matched by role even though the app exposes
-    /// no explicit editable attribute. Requires real-device verification before
-    /// automatic pasting is enabled (see docs/ACCEPTANCE.md).
+    /// no explicit editable attribute. Informational only: the routing decision
+    /// is role + a writable attribute, never this flag.
     var isBrowserOrElectronFallback: Bool
 
     /// The conservative "we know nothing" value.
     static let unknown = FocusedInputInfo(
-        role: nil, subrole: nil, enabled: false, editable: false,
+        role: nil, subrole: nil, enabled: false, editable: nil,
         selectedTextSettable: false, valueSettable: false,
         isSecure: true, isBrowserOrElectronFallback: false)
 
@@ -59,12 +63,18 @@ struct FocusedInputInfo: Equatable {
     /// secure field. Given that, a known text role is the reliable signal;
     /// `AXEditable` and the browser/Electron flag are accepted as additional
     /// positive evidence for controls whose role is unfamiliar.
+    ///
+    /// Crucially, an **explicit `AXEditable = false`** (a read-only control)
+    /// always refuses scenario 2, even when the role is a text role and the value
+    /// happens to be settable. Only a *missing* attribute falls back to the role
+    /// rule.
     var looksEditable: Bool {
         guard !isSecure, enabled else { return false }
+        if editable == false { return false }
         let writable = selectedTextSettable || valueSettable
         guard writable else { return false }
         if let role, Self.textInputRoles.contains(role) { return true }
-        if editable { return true }
+        if editable == true { return true }
         return isBrowserOrElectronFallback
     }
 }

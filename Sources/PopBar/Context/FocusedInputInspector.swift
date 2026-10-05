@@ -24,16 +24,16 @@ enum FocusedInputInspector {
         let role = string(element, kAXRoleAttribute)
         let subrole = string(element, kAXSubroleAttribute)
         let enabled = boolValue(element, kAXEnabledAttribute) ?? true
-        let editable = boolValue(element, editableAttribute) ?? false
+        // Tri-state: nil when the app does not expose AXEditable at all.
+        let editable = boolValue(element, editableAttribute)
         let selectedTextSettable = isSettable(element, kAXSelectedTextAttribute)
         let valueSettable = isSettable(element, kAXValueAttribute)
         let secure = isSecure(role: role, subrole: subrole)
 
         // Informational: a text role that did NOT expose the non-standard
-        // `AXEditable` attribute — the browser/Electron case the plan called out.
-        // The routing decision no longer depends on this flag (role + a writable
-        // attribute is enough), but it is kept for diagnostics.
-        let fallback = !secure && enabled && !editable
+        // `AXEditable` attribute — the browser/Electron case. The routing
+        // decision is role + writable, never this flag.
+        let fallback = !secure && enabled && editable == nil
             && (role.map(FocusedInputInfo.textInputRoles.contains) ?? false)
 
         let info = FocusedInputInfo(

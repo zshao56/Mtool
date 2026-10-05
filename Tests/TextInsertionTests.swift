@@ -49,4 +49,17 @@ final class TextInsertionTests: XCTestCase {
         XCTAssertNil(TextInsertion.insert("X", into: "hello", atUTF16: NSRange(location: -1, length: 0)))
         XCTAssertNil(TextInsertion.insert("X", into: "hello", atUTF16: NSRange(location: 2, length: -1)))
     }
+
+    /// The `end == count` boundary: the implementation slices `units[end...]`,
+    /// which is the empty suffix at the end of the string. Verified safe under
+    /// Swift 5.10; this test pins it so a future refactor cannot break the
+    /// caret-at-end case.
+    func testRangeEndingExactlyAtCountIsSafe() {
+        XCTAssertEqual(TextInsertion.insert("X", into: "hello", atUTF16: NSRange(location: 5, length: 0)),
+                       "helloX")
+        XCTAssertEqual(TextInsertion.insert("X", into: "hello", atUTF16: NSRange(location: 3, length: 2)),
+                       "helX")
+        XCTAssertEqual(TextInsertion.insert("", into: "hello", atUTF16: NSRange(location: 5, length: 0)),
+                       "hello")
+    }
 }

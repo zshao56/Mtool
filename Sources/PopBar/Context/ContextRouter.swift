@@ -206,26 +206,54 @@ final class ContextRouter {
         closeAll()
         let pasteGeneration = generation
         target?.activate(options: [])
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-            guard let self, self.generation == pasteGeneration else { return }
-            self.finishPaste(item: item, captured: captured)
-        }
+        waitForFocusAndPaste(item: item, captured: captured, targetPID: pid_t(pid),
+                             expectedGeneration: pasteGeneration,
+                             deadline: Date().addingTimeInterval(1.0))
     }
 
-    /// Re-read the system focus after it has been restored and only proceed when
-    /// it is the captured element.
-    private func finishPaste(item: ClipboardItem, captured: AXUIElement) {
-        let current = FocusedInputInspector.focusedElement()
-        guard let current, FocusedInputInspector.isSameElement(current, captured) else {
-            log.info("focus did not return to the captured element — copying only")
-            copyOnly(item)
+    /// Poll (briefly) for focus to return to the captured element, then paste.
+    ///
+    /// The wait is bounded: every 50 ms we re-check that the user has not
+    /// re-triggered (generation), that no third app came forward, and that the
+    /// system-wide focused element is the captured one. On timeout, on a
+    /// frontmost-app change, or on a generation change we copy only — nothing is
+    /// ever typed into a window we could not re-validate.
+    private func waitForFocusAndPaste(item: ClipboardItem, captured: AXUIElement,
+                                      targetPID: pid_t, expectedGeneration: Int,
+                                      deadline: Date) {
+        guard generation == expectedGeneration else { return }
+
+        let ownPID = ProcessInfo.processInfo.processIdentifier
+        if let front = NSWorkspace.shared.frontmostApplication {
+            let frontPID = front.processIdentifier
+            if frontPID != targetPID && frontPID != ownPID {
+                log.info("a different app came forward during the paste wait — copying only")
+                copyOnly(item)
+                return
+            }
+        }
+
+        if let focused = FocusedInputInspector.focusedElement(),
+           FocusedInputInspector.isSameElement(focused, captured) {
+            pasteIntoConfirmedElement(item: item, element: focused)
             return
         }
 
+        guard Date() < deadline else {
+            log.info("focus did not return to the captured element within 1s — copying only")
+            copyOnly(item)
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.waitForFocusAndPaste(item: item, captured: captured, targetPID: targetPID,
+                                       expectedGeneration: expectedGeneration, deadline: deadline)
+        }
+    }
+
+    private func pasteIntoConfirmedElement(item: ClipboardItem, element: AXUIElement) {
         // Text: prefer a position-correct accessibility write.
         if let text = item.text, !text.isEmpty,
-           FocusedInputInspector.writeText(text, to: current) {
+           FocusedInputInspector.writeText(text, to: element) {
             store.markUsed(id: item.id)
             log.info("pasted via AX (\(text.count) chars)")
             return

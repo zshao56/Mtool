@@ -14,7 +14,7 @@ final class ContextRoutingTests: XCTestCase {
                        subrole: String? = nil,
                        secure: Bool = false,
                        enabled: Bool = true,
-                       editable: Bool = false,
+                       editable: Bool? = nil,
                        selectedTextSettable: Bool = false,
                        valueSettable: Bool = false,
                        fallback: Bool = false) -> FocusedInputInfo {
@@ -83,6 +83,26 @@ final class ContextRoutingTests: XCTestCase {
         let textArea = ContextSnapshot(selectedText: nil,
                                        focused: focus(role: "AXTextArea", selectedTextSettable: true))
         XCTAssertEqual(ContextRouting.scene(for: textArea), .clipboard)
+    }
+
+    /// A missing `AXEditable` attribute must not block a known text role with a
+    /// writable value (the exact case the tri-state exists for).
+    func testMissingEditableWithKnownRoleIsAllowed() {
+        let snapshot = ContextSnapshot(selectedText: nil,
+                                       focused: focus(role: "AXTextField", editable: nil,
+                                                      valueSettable: true))
+        XCTAssertTrue(snapshot.focused!.looksEditable)
+        XCTAssertEqual(ContextRouting.scene(for: snapshot), .clipboard)
+    }
+
+    /// An explicit `AXEditable = false` is a read-only control: scenario 2 must
+    /// be refused even though the role is a text role and the value is settable.
+    func testExplicitNotEditableRefusesScenarioTwo() {
+        let snapshot = ContextSnapshot(selectedText: nil,
+                                       focused: focus(role: "AXTextField", editable: false,
+                                                      valueSettable: true))
+        XCTAssertFalse(snapshot.focused!.looksEditable)
+        XCTAssertEqual(ContextRouting.scene(for: snapshot), .search)
     }
 
     /// An unfamiliar role with a writable attribute is not enough on its own; it
