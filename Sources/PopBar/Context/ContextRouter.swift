@@ -23,7 +23,8 @@ final class ContextRouter {
     /// Set by `PopBarController`: resolve the current selection now.
     var onResolveRequested: (() -> Void)?
     /// Set by `PopBarController`: show the action bar for a resolved selection.
-    var presentSelection: ((SelectionResult, CGPoint) -> Void)?
+    /// The pid lets the bar's Replace button write back into the source app.
+    var presentSelection: ((SelectionResult, CGPoint, pid_t?) -> Void)?
     /// Set by `PopBarController`: dismiss the action bar.
     var closeSelection: (() -> Void)?
     /// Set by `PopBarController`: whether the action bar is currently showing.
@@ -152,7 +153,9 @@ final class ContextRouter {
 
         switch routed {
         case .selection:
-            if let result { presentSelection?(result, anchor) }
+            if let result {
+                presentSelection?(result, anchor, snap.frontAppPID.map { pid_t($0) })
+            }
         case .clipboard:
             clipboard.show(near: anchor)
         case .search:

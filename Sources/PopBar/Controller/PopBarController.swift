@@ -82,11 +82,11 @@ final class PopBarController {
 
         router.isSelectionVisible = { [weak self] in self?.windows.transientIsShowingActions ?? false }
         router.onResolveRequested = { [weak self] in self?.routeMainHotKey() }
-        router.presentSelection = { [weak self] result, anchor in
+        router.presentSelection = { [weak self] result, anchor, pid in
             guard let self else { return }
             self.windows.showTransient(
                 text: result.text, url: nil,
-                source: SelectionSource.capture(element: result.sourceElement, pid: nil, via: result.via),
+                source: SelectionSource.capture(element: result.sourceElement, pid: pid, via: result.via),
                 element: result.sourceElement, anchor: anchor,
                 actions: self.actionStore.actions, origin: nil)
         }
