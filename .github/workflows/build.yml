@@ -131,12 +131,16 @@ jobs:
 
       # Optional notarization, only when the fork owner supplied Apple creds.
       - name: Notarize (optional)
-        if: ${{ env.HAS_SIGNING == 'true' && secrets.MTOOL_APPLE_ID != '' && secrets.MTOOL_APPLE_TEAM_ID != '' && secrets.MTOOL_APPLE_PASSWORD != '' }}
+        if: ${{ env.HAS_SIGNING == 'true' }}
         env:
           APPLE_ID: ${{ secrets.MTOOL_APPLE_ID }}
           TEAM_ID: ${{ secrets.MTOOL_APPLE_TEAM_ID }}
           APP_SPECIFIC_PASSWORD: ${{ secrets.MTOOL_APPLE_PASSWORD }}
         run: |
+          if [ -z "$APPLE_ID" ] || [ -z "$TEAM_ID" ] || [ -z "$APP_SPECIFIC_PASSWORD" ]; then
+            echo "No Apple notarization secrets — skipping (DMG stays unnotarized)."
+            exit 0
+          fi
           xcrun notarytool submit "build/Release/${APP_NAME}.dmg" \
             --apple-id "$APPLE_ID" --team-id "$TEAM_ID" \
             --password "$APP_SPECIFIC_PASSWORD" --wait

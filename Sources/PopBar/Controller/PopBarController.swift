@@ -327,6 +327,7 @@ final class PopBarController {
     @discardableResult
     func setMainHotKey(_ combo: KeyCombo) -> Bool {
         guard combo != PopBarPreferences.screenOCRHotKey else { return false }
+        if let popup = PopBarPreferences.popupHotKey, combo == popup { return false }
         let previous = mainHotKey
         previous?.invalidate()
         guard let registered = GlobalHotKey(combo: combo, onPressed: { [weak self] in self?.mainHotKeyPressed() }) else {

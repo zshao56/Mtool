@@ -283,7 +283,7 @@ final class PopBarStore: ObservableObject {
     /// combo cannot do two things) or when another app holds it.
     @discardableResult
     func setPopupHotKey(_ combo: KeyCombo) -> Bool {
-        guard combo != screenOCRHotKey else { return false }
+        guard combo != screenOCRHotKey, combo != MtoolPreferences.mainHotKey else { return false }
         let wasUsable = popupHotKeyRegistered
         let ok = controller.setPopupHotKey(combo)
         if ok { popupHotKey = combo }
@@ -371,7 +371,7 @@ final class PopBarStore: ObservableObject {
     /// success the published combo is updated so the recorder field reflects it.
     @discardableResult
     func setScreenOCRHotKey(_ combo: KeyCombo) -> Bool {
-        guard combo != popupHotKey else { return false }   // the popup hotkey has it
+        guard combo != popupHotKey, combo != MtoolPreferences.mainHotKey else { return false }
         let ok = controller.setScreenOCRHotKey(combo)
         if ok { screenOCRHotKey = combo }
         screenOCRRegistered = controller.screenOCRIsRegistered
