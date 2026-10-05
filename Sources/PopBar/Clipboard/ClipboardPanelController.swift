@@ -28,6 +28,8 @@ final class ClipboardPanelController {
 
     func show(near anchor: CGPoint) {
         let panel = ensurePanel()
+        model.previewItem = nil
+        model.query = ""
         // Refresh before showing so the list is current.
         model.reload()
         position(panel, near: anchor)
@@ -36,12 +38,17 @@ final class ClipboardPanelController {
         // does not lose the original paste target.
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.async { [weak self] in
+            guard self?.panel?.isVisible == true else { return }
+            self?.model.focusRequestID = UUID()
+        }
         installEscMonitor()
         Self.log.debug("clipboard panel shown")
     }
 
     func hide() {
         removeEscMonitor()
+        model.previewItem = nil
         panel?.orderOut(nil)
     }
 
@@ -51,7 +58,7 @@ final class ClipboardPanelController {
         if let panel { return panel }
         let hosting = NSHostingController(rootView: ClipboardPanelView(model: model))
         let panel = MtoolFloatingPanel(contentViewController: hosting)
-        panel.setContentSize(NSSize(width: 440, height: 500))
+        panel.setContentSize(NSSize(width: 560, height: 400))
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.animationBehavior = .utilityWindow
@@ -60,6 +67,7 @@ final class ClipboardPanelController {
             forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
         ) { [weak self] _ in
             // An outside click resigns key; treat it as "close".
+            guard self?.isVisible == true else { return }
             self?.onCloseRequested?()
         }
         return panel
@@ -85,6 +93,13 @@ final class ClipboardPanelController {
         guard escapeMonitor == nil else { return }
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
+            if self.model.previewItem != nil {
+                if event.keyCode == 53 {
+                    self.model.previewItem = nil
+                    return nil
+                }
+                return event
+            }
             // While the snippet editor is open, the text fields own the keyboard;
             // only Esc is intercepted (to cancel editing rather than close).
             if self.model.isEditing {

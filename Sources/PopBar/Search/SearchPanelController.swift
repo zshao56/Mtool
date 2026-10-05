@@ -36,17 +36,28 @@ final class SearchPanelController {
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
-    func show(near anchor: CGPoint, allowsClipboard: Bool = false) {
+    func show(near anchor: CGPoint, allowsClipboard: Bool = false, selectedModeID: String? = nil) {
         let panel = ensurePanel()
         lastAnchor = anchor
         model.resetForOpen()
         model.showsClipboardButton = allowsClipboard
         // Refresh the mode list from the current actions each time it opens.
         model.loadModes(from: actionStore.actions)
+        if let selectedModeID, model.modes.contains(where: { $0.id == selectedModeID }) {
+            model.selectedModeID = selectedModeID
+        } else {
+            model.selectedModeID = "ask"
+        }
         position(panel, near: anchor)
         // Activate so the query field can take keystrokes.
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
+        // A reused SwiftUI text field can appear before this panel becomes key.
+        // Request focus again on the next run loop, after AppKit has made it key.
+        DispatchQueue.main.async { [weak self, weak panel] in
+            guard panel?.isVisible == true else { return }
+            self?.model.focusRequestID = UUID()
+        }
         installEscMonitor()
         Self.log.debug("search panel shown")
     }

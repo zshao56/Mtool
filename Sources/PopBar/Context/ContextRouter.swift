@@ -32,6 +32,8 @@ final class ContextRouter {
 
     private let store: ClipboardStore
     private let watcher: ClipboardWatcher
+    private let actionStore: ActionStore
+    private var panelAnchor: CGPoint = .zero
 
     /// The snapshot taken when the trigger fired, used to validate a paste.
     private var snapshot: ContextSnapshot?
@@ -45,6 +47,7 @@ final class ContextRouter {
 
     init(llm: LLMService, actionStore: ActionStore, store: ClipboardStore) {
         self.store = store
+        self.actionStore = actionStore
         self.watcher = ClipboardWatcher(store: store)
         self.screenshot = ScreenshotCopyController(store: store)
         self.clipboard = ClipboardPanelController(store: store)
@@ -60,7 +63,16 @@ final class ContextRouter {
             self?.store.delete(id: item.id)
             self?.clipboard.model.reload()
         }
-        clipboard.onCloseRequested = { [weak self] in self?.closeAll() }
+        clipboard.onCloseRequested = { [weak self] in
+            guard let self, !self.isSwitchingPanels else { return }
+            self.closeAll()
+        }
+        clipboard.model.onModeRequested = { [weak self] id in self?.showSearchFromClipboard(modeID: id) }
+        clipboard.model.onScreenshotRequested = { [weak self] in
+            guard let self else { return }
+            self.closeAll()
+            self.screenshot.begin()
+        }
         search.onCloseRequested = { [weak self] in
             guard let self, !self.isSwitchingPanels else { return }
             self.closeAll()
@@ -117,21 +129,30 @@ final class ContextRouter {
 
     /// Open the quick-search box without a selection snapshot (from the menu).
     func showSearch() {
+        isSwitchingPanels = true
+        clipboard.hide()
+        isSwitchingPanels = false
         generation &+= 1
         snapshot = nil
         snapshotElement = nil
+        panelAnchor = NSEvent.mouseLocation
         scene = .search
-        search.show(near: NSEvent.mouseLocation, allowsClipboard: true)
+        search.show(near: panelAnchor, allowsClipboard: true)
     }
 
     /// Open the clipboard panel without a selection snapshot (from the menu).
     func showClipboard() {
+        isSwitchingPanels = true
+        search.hide()
+        isSwitchingPanels = false
         generation &+= 1
         snapshot = nil
         snapshotElement = nil
+        panelAnchor = NSEvent.mouseLocation
         scene = .clipboard
         clipboard.model.pasteAvailable = false
-        clipboard.show(near: NSEvent.mouseLocation)
+        refreshClipboardModes()
+        clipboard.show(near: panelAnchor)
     }
 
     /// Switch from the editable-context question box to clipboard history while
@@ -141,8 +162,24 @@ final class ContextRouter {
         isSwitchingPanels = true
         defer { isSwitchingPanels = false }
         search.hide()
+        scene = .clipboard
         clipboard.model.pasteAvailable = snapshotElement != nil && snapshot?.focused?.looksEditable == true
-        clipboard.show(near: NSEvent.mouseLocation)
+        refreshClipboardModes()
+        clipboard.show(near: panelAnchor)
+    }
+
+    private func showSearchFromClipboard(modeID: String) {
+        guard scene == .clipboard else { return }
+        isSwitchingPanels = true
+        defer { isSwitchingPanels = false }
+        clipboard.hide()
+        scene = .search
+        search.show(near: panelAnchor, allowsClipboard: true, selectedModeID: modeID)
+    }
+
+    private func refreshClipboardModes() {
+        search.model.loadModes(from: actionStore.actions)
+        clipboard.model.modes = search.model.modes
     }
 
     // MARK: - Routing
@@ -169,8 +206,11 @@ final class ContextRouter {
         snap.selectedText = result?.text
         self.snapshot = snap
         self.snapshotElement = element
+        panelAnchor = anchor
 
-        let routed = ContextRouting.scene(for: snap)
+        let routed = ContextRouting.scene(for: snap,
+                                          focusedElementAvailable: element != nil,
+                                          secureInputActive: FocusedInputInspector.isSecureInputActive())
         scene = routed
         Self.log.info("routed scene=\(routed.rawValue) selected=\(ContextRouting.hasActionableSelection(result?.text)) editable=\(snap.focused?.looksEditable ?? false)")
 
@@ -180,7 +220,9 @@ final class ContextRouter {
                 presentSelection?(result, anchor, snap.frontAppPID.map { pid_t($0) })
             }
         case .clipboard:
-            search.show(near: anchor, allowsClipboard: true)
+            clipboard.model.pasteAvailable = element != nil && snap.focused?.looksEditable == true
+            refreshClipboardModes()
+            clipboard.show(near: anchor)
         case .search:
             search.show(near: anchor, allowsClipboard: true)
         case .hidden:

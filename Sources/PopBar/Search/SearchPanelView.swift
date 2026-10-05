@@ -121,8 +121,10 @@ struct SearchPanelView: View {
                 .font(.system(size: 19))
                 .lineLimit(1...3)
                 .focused($queryFocused)
-                .id(model.focusRequestID)
-                .onAppear { queryFocused = true }
+                .onAppear { DispatchQueue.main.async { queryFocused = true } }
+                .onChange(of: model.focusRequestID) { _ in
+                    DispatchQueue.main.async { queryFocused = true }
+                }
                 .onSubmit { model.submit() }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.horizontal, 24)

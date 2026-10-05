@@ -599,7 +599,7 @@
 
 "mtool.keyboard.main.header" = "主快捷键";
 "mtool.keyboard.main.title" = "三场景快捷键";
-"mtool.keyboard.main.subtitle" = "按一次：有选中文字时打开动作栏；其他情况打开带剪贴板入口的提问框。再按一次关闭。";
+"mtool.keyboard.main.subtitle" = "按一次：有选中文字时打开动作栏；输入框中先打开剪贴板，其余情况打开提问框。再按一次关闭。";
 "mtool.keyboard.main.label" = "快捷键";
 "mtool.keyboard.main.occupied" = "该快捷键无法注册，可能已被其他应用占用，请重新录制一个。";
 "mtool.keyboard.main.hint" = "推荐使用 ⌥Space。双击触发在下方有独立录制框。";
@@ -675,6 +675,8 @@
 
 /* 常用词编辑器 */
 "clipboard.copy" = "复制";
+"clipboard.preview" = "预览图片";
+"clipboard.preview.close" = "关闭预览";
 "clipboard.cancel" = "取消";
 "clipboard.snippet.new" = "新建常用词";
 "clipboard.snippet.edit" = "编辑常用词";

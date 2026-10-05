@@ -600,7 +600,7 @@
 
 "mtool.keyboard.main.header" = "Main shortcut";
 "mtool.keyboard.main.title" = "Three-scene shortcut";
-"mtool.keyboard.main.subtitle" = "Press once to open the action bar for selected text, or the question box with a clipboard button elsewhere. Press again to close.";
+"mtool.keyboard.main.subtitle" = "Press once for the selection actions, clipboard in an input field, or the question box elsewhere. Press again to close.";
 "mtool.keyboard.main.label" = "Shortcut";
 "mtool.keyboard.main.occupied" = "This shortcut could not be registered — another app already uses it. Record a different one.";
 "mtool.keyboard.main.hint" = "Recommended: ⌥Space. The double-tap trigger has its own recorder below.";
@@ -676,6 +676,8 @@
 
 /* Snippet (常用词) editor */
 "clipboard.copy" = "Copy";
+"clipboard.preview" = "Preview image";
+"clipboard.preview.close" = "Close preview";
 "clipboard.cancel" = "Cancel";
 "clipboard.snippet.new" = "New saved item";
 "clipboard.snippet.edit" = "Edit saved item";

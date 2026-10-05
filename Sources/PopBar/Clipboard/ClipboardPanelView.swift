@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ImageIO
 
 /// The clipboard panel's view model. Main-thread; reloads from the store.
 final class ClipboardPanelModel: ObservableObject {
@@ -9,6 +10,9 @@ final class ClipboardPanelModel: ObservableObject {
     @Published var snippets: [Snippet] = []
     @Published var paused: Bool = ClipboardPreferences.paused
     @Published var pasteAvailable = false
+    @Published var previewItem: ClipboardItem?
+    @Published var modes: [SearchMode] = []
+    @Published var focusRequestID = UUID()
     /// The highlighted row, as a stable key: `"s<id>"` for a snippet, `"h<id>"`
     /// for a history entry. Snippets come first, matching the visual order, so
     /// ↑/↓ can move through both groups.
@@ -21,6 +25,8 @@ final class ClipboardPanelModel: ObservableObject {
     var onTogglePin: ((ClipboardItem) -> Void)?
     var onDelete: ((ClipboardItem) -> Void)?
     var onClose: (() -> Void)?
+    var onModeRequested: ((String) -> Void)?
+    var onScreenshotRequested: (() -> Void)?
 
     // Snippet editor state. `editingID == 0` means "new"; nil means not editing.
     @Published var editingID: Int64?
@@ -174,27 +180,13 @@ struct ClipboardPanelView: View {
                         snippetEditor
                         Divider().padding(.vertical, 4)
                     }
-                    HStack {
+                    if !model.snippets.isEmpty {
                         sectionHeader(L("clipboard.snippets"))
-                        Spacer()
-                        Button {
-                            model.beginAddSnippet()
-                        } label: {
-                            Image(systemName: "plus").font(.system(size: 11))
+                        ForEach(model.snippets) { snippet in
+                            snippetRow(snippet)
                         }
-                        .buttonStyle(.plain)
-                        .help(L("clipboard.snippet.add"))
-                        .padding(.trailing, 12)
+                        Divider().padding(.vertical, 4)
                     }
-                    if model.snippets.isEmpty {
-                        Text(L("clipboard.snippets.empty"))
-                            .font(.system(size: 11)).foregroundStyle(.secondary)
-                            .padding(.horizontal, 12).padding(.bottom, 6)
-                    }
-                    ForEach(model.snippets) { snippet in
-                        snippetRow(snippet)
-                    }
-                    Divider().padding(.vertical, 4)
                     sectionHeader(L("clipboard.history"))
                     if model.items.isEmpty {
                         Text(L("clipboard.empty"))
@@ -203,6 +195,7 @@ struct ClipboardPanelView: View {
                     }
                     ForEach(model.items) { item in
                         row(icon: icon(for: item), text: item.singleLine(),
+                            imageURL: item.kind == .image ? item.blobPath.map { model.store.blobURL(for: $0) } : nil,
                             subtitle: subtitle(for: item),
                             isSelected: model.selectedKey == ClipboardPanelModel.itemKey(item),
                             trailing: AnyView(actions(for: item)),
@@ -213,10 +206,17 @@ struct ClipboardPanelView: View {
             Divider()
             footer
         }
-        .frame(width: 440, height: 500)
+        .frame(width: 560, height: 400)
         .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear { model.reload(); searchFocused = true }
-        .onChange(of: model.query) { _ in model.reload() }
+        .overlay { imagePreviewOverlay }
+        .onAppear {
+            model.reload()
+            DispatchQueue.main.async { searchFocused = true }
+        }
+        .onChange(of: model.focusRequestID) { _ in
+            DispatchQueue.main.async { searchFocused = true }
+        }
+        .onChange(of: model.query) { _ in model.previewItem = nil; model.reload() }
     }
 
     private var header: some View {
@@ -227,6 +227,11 @@ struct ClipboardPanelView: View {
                 set: { model.setQuery($0) }))
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
+            Button { model.beginAddSnippet() } label: {
+                Image(systemName: "plus")
+            }
+            .buttonStyle(.plain)
+            .help(L("clipboard.snippet.add"))
             Button {
                 model.togglePause()
             } label: {
@@ -245,15 +250,72 @@ struct ClipboardPanelView: View {
     }
 
     private var footer: some View {
-        HStack {
-            Text(model.paused ? L("clipboard.paused") :
-                 (model.pasteAvailable ? L("clipboard.localOnly") : L("clipboard.copyThenPaste")))
-                .font(.system(size: 10)).foregroundStyle(.secondary)
-            Spacer()
-            Text(String(format: L("clipboard.count.format"), model.items.count))
-                .font(.system(size: 10)).foregroundStyle(.secondary)
+        VStack(spacing: 4) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    Button { model.onScreenshotRequested?() } label: {
+                        Label(L("search.screenshot"), systemImage: "camera.viewfinder")
+                            .font(.system(size: 11))
+                            .padding(.horizontal, 9).padding(.vertical, 5)
+                    }
+                    .buttonStyle(.plain)
+                    Label(L("search.clipboard"), systemImage: "doc.on.clipboard")
+                        .font(.system(size: 11, weight: .semibold))
+                        .padding(.horizontal, 9).padding(.vertical, 5)
+                        .background(Color.accentColor.opacity(0.14), in: Capsule())
+                    ForEach(model.modes) { mode in
+                        Button { model.onModeRequested?(mode.id) } label: {
+                            Text(mode.title)
+                                .font(.system(size: 11))
+                                .padding(.horizontal, 9).padding(.vertical, 5)
+                        }
+                        .buttonStyle(.plain)
+                        .help(mode.title)
+                    }
+                }
+            }
+            HStack {
+                Text(model.paused ? L("clipboard.paused") :
+                     (model.pasteAvailable ? L("clipboard.localOnly") : L("clipboard.copyThenPaste")))
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+                Spacer()
+                Text(String(format: L("clipboard.count.format"), model.items.count))
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+            }
         }
-        .padding(.horizontal, 12).padding(.vertical, 5)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private var imagePreviewOverlay: some View {
+        if let item = model.previewItem, let path = item.blobPath {
+            ZStack {
+                Color.black.opacity(0.32)
+                    .onTapGesture { model.previewItem = nil }
+                VStack(spacing: 14) {
+                    HStack {
+                        Text(item.singleLine())
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                        Spacer()
+                        Button { model.previewItem = nil } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help(L("clipboard.preview.close"))
+                    }
+                    ClipboardImageContent(url: model.store.blobURL(for: path), maxPixel: 1000)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+                }
+                .padding(16)
+                .frame(width: 510, height: 330)
+                .background(Color(nsColor: .windowBackgroundColor),
+                            in: RoundedRectangle(cornerRadius: 16))
+                .shadow(radius: 14)
+            }
+        }
     }
 
     private func sectionHeader(_ text: String) -> some View {
@@ -266,15 +328,22 @@ struct ClipboardPanelView: View {
     /// A history row. The main area is its own Button; the trailing action
     /// buttons sit OUTSIDE it as siblings, so tapping pin/delete/save can never
     /// also trigger a paste.
-    private func row(icon: String, text: String, subtitle: String?,
+    private func row(icon: String, text: String, imageURL: URL? = nil, subtitle: String?,
                      isSelected: Bool, trailing: AnyView?, onTap: @escaping () -> Void) -> some View {
         HStack(spacing: 9) {
             Button(action: onTap) {
                 HStack(spacing: 9) {
-                    Image(systemName: icon)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 16)
+                    if let imageURL {
+                        ClipboardImageContent(url: imageURL, maxPixel: 96)
+                            .frame(width: 54, height: 44)
+                            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16)
+                    }
                     VStack(alignment: .leading, spacing: 1) {
                         Text(text).font(.system(size: 12)).lineLimit(2)
                         if let subtitle {
@@ -373,6 +442,12 @@ struct ClipboardPanelView: View {
 
     private func actions(for item: ClipboardItem) -> some View {
         HStack(spacing: 6) {
+            if item.kind == .image, item.blobPath != nil {
+                Button { model.previewItem = item } label: {
+                    Image(systemName: "eye")
+                }
+                .buttonStyle(.plain).help(L("clipboard.preview"))
+            }
             Button { model.onTogglePin?(item) } label: {
                 Image(systemName: item.pinned ? "pin.slash" : "pin")
             }
@@ -383,7 +458,10 @@ struct ClipboardPanelView: View {
                 }
                 .buttonStyle(.plain).help(L("clipboard.saveSnippet"))
             }
-            Button { model.onDelete?(item) } label: {
+            Button {
+                if model.previewItem?.id == item.id { model.previewItem = nil }
+                model.onDelete?(item)
+            } label: {
                 Image(systemName: "trash")
             }
             .buttonStyle(.plain).help(L("clipboard.delete"))
@@ -409,5 +487,51 @@ struct ClipboardPanelView: View {
         formatter.unitsStyle = .short
         parts.append(formatter.localizedString(for: item.createdAt, relativeTo: Date()))
         return parts.joined(separator: " · ")
+    }
+}
+
+/// Decode only enough pixels for the current preview size. Clipboard screenshots
+/// can be large, so the history list never loads full-resolution PNGs into memory.
+private struct ClipboardImageContent: View {
+    let url: URL
+    let maxPixel: Int
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "photo")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear { image = ClipboardImageLoader.image(at: url, maxPixel: maxPixel) }
+    }
+}
+
+private enum ClipboardImageLoader {
+    private static let cache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 80
+        cache.totalCostLimit = 64 * 1024 * 1024
+        return cache
+    }()
+
+    static func image(at url: URL, maxPixel: Int) -> NSImage? {
+        let key = "\(url.path):\(maxPixel)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixel
+              ] as CFDictionary) else { return nil }
+        let image = NSImage(cgImage: thumbnail,
+                            size: NSSize(width: thumbnail.width, height: thumbnail.height))
+        cache.setObject(image, forKey: key, cost: thumbnail.bytesPerRow * thumbnail.height)
+        return image
     }
 }
