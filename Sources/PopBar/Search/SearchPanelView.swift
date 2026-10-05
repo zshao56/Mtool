@@ -105,15 +105,14 @@ struct SearchPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                FloatingPanelDragHandle()
-                    .frame(height: 15)
-                    .overlay {
-                        Capsule().fill(Color.secondary.opacity(0.35))
-                            .frame(width: 30, height: 4)
-                            .allowsHitTesting(false)
-                    }
-            }
+            FloatingPanelDragHandle()
+                .frame(maxWidth: .infinity)
+                .frame(height: 15)
+                .overlay {
+                    Capsule().fill(Color.secondary.opacity(0.35))
+                        .frame(width: 30, height: 4)
+                        .allowsHitTesting(false)
+                }
             .padding(.horizontal, 24)
             .padding(.top, 3)
 
