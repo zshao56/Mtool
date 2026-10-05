@@ -112,7 +112,8 @@ jobs:
             codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           else
             echo "No signing secrets — ad-hoc signing the app"
-            codesign --force --deep --sign - "$APP_PATH" || true
+            codesign --force --deep --sign - "$APP_PATH"
+            codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           fi
 
       - name: Create DMG
@@ -161,6 +162,7 @@ jobs:
           files: |
             build/Release/${{ env.APP_NAME }}.dmg
             build/Release/${{ env.APP_NAME }}.dmg.sha256
-          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-preview') }}
+          body_path: docs/releases/${{ github.ref_name }}.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

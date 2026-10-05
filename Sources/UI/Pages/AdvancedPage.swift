@@ -49,7 +49,11 @@ struct AdvancedPage: View {
             }
             if store.popupHotKeyEnabled {
                 LabeledContent {
-                    HotKeyRecorderField(combo: store.popupHotKey) { combo in
+                    HotKeyRecorderField(
+                        combo: store.popupHotKey,
+                        onBeginRecording: { store.beginHotKeyRecording() },
+                        onEndRecording: { store.endHotKeyRecording($0) }
+                    ) { combo in
                         popupHotKeyError = !store.setPopupHotKey(combo)
                     }
                 } label: {

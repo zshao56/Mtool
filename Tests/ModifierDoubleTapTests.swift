@@ -80,4 +80,69 @@ final class ModifierDoubleTapTests: XCTestCase {
         _ = d.handle(.commandDown, at: 1.1)
         XCTAssertFalse(d.handle(.commandUp, at: 1.12))
     }
+
+    // MARK: - handleFlags tests
+
+    func testHandleFlagsCompletesDoubleTap() {
+        var d = detector()
+        // Tap 1: press & release Command
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.0))
+        XCTAssertTrue(d.commandWasDown)
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.05))
+        XCTAssertFalse(d.commandWasDown)
+        // Tap 2: press & release Command within threshold
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.15))
+        XCTAssertTrue(d.commandWasDown)
+        XCTAssertTrue(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.25))
+        XCTAssertFalse(d.commandWasDown)
+    }
+
+    func testHandleFlagsOtherModifierResets() {
+        var d = detector()
+        // Tap 1
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.0))
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.05))
+        // Introduce Option modifier
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: true, at: 0.10))
+        // Tap 2 now fails to complete double tap because Option interrupted
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.15))
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.20))
+    }
+
+    func testHandleFlagsTooSlowDoesNotComplete() {
+        var d = detector(threshold: 0.35)
+        // Tap 1
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.0))
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.05))
+        // Tap 2 starts at 0.45s (interval > 0.35s)
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.45))
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.50))
+    }
+
+    func testHandleFlagsOtherKeyCancels() {
+        var d = detector()
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.0))
+        // User presses 'c' while Command is down (⌘C)
+        d.handle(.otherKeyDown, at: 0.05)
+        // Release Command
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.10))
+        // Second tap
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.15))
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.20))
+    }
+
+    func testHandleFlagsConsecutiveDoubleTaps() {
+        var d = detector()
+        // First double-tap
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.0))
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.05))
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.15))
+        XCTAssertTrue(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.20))
+
+        // Second double-tap
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.40))
+        XCTAssertFalse(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.45))
+        XCTAssertFalse(d.handleFlags(commandDown: true, otherModifiers: false, at: 0.55))
+        XCTAssertTrue(d.handleFlags(commandDown: false, otherModifiers: false, at: 0.60))
+    }
 }

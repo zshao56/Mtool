@@ -6,6 +6,7 @@ struct KeyboardPage: View {
 
     @ObservedObject private var store: MtoolSettingsStore
     @State private var hotKeyError = false
+    @State private var doubleCommandRecorded = false
     private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     init(store: MtoolSettingsStore) {
@@ -22,7 +23,17 @@ struct KeyboardPage: View {
                 }
                 if store.mainHotKeyEnabled {
                     LabeledContent {
-                        HotKeyRecorderField(combo: store.mainHotKey) { combo in
+                        HotKeyRecorderField(
+                            combo: store.mainHotKey,
+                            onBeginRecording: { store.beginHotKeyRecording() },
+                            onEndRecording: { store.endHotKeyRecording($0) },
+                            onDoubleCommandRecorded: {
+                                doubleCommandRecorded = true
+                                _ = store.setDoubleCommandEnabled(true)
+                            },
+                            doubleCommandThreshold: store.doubleCommandThreshold / 1000
+                        ) { combo in
+                            doubleCommandRecorded = false
                             hotKeyError = !store.setMainHotKey(combo)
                         }
                     } label: {
@@ -61,6 +72,10 @@ struct KeyboardPage: View {
                                  L("mtool.keyboard.doubleCommand.subtitle"))
                 }
                 if store.doubleCommandEnabled {
+                    if doubleCommandRecorded {
+                        Text(L("mtool.keyboard.doubleCommand.recorded"))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     LabeledContent {
                         HStack {
                             Slider(value: Binding(get: { store.doubleCommandThreshold },
@@ -74,9 +89,16 @@ struct KeyboardPage: View {
                         iconLabel("timer", .indigo, L("mtool.keyboard.doubleCommand.threshold"))
                     }
                     if !store.doubleCommandAvailable {
-                        Text(L("mtool.keyboard.doubleCommand.unavailable"))
-                            .font(.caption).foregroundStyle(.orange)
-                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("mtool.keyboard.doubleCommand.unavailable"))
+                                .font(.caption).foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Button(L("popbar.ocr.perm.open")) {
+                                store.openAccessibilitySettings()
+                            }
+                            .buttonStyle(.borderless)
+                            .font(.caption)
+                        }
                     }
                 }
             } header: {

@@ -32,6 +32,10 @@ final class PopBarController {
     /// The main shortcut (the app's one primary gesture). Registered while
     /// `MtoolPreferences.mainHotKeyEnabled` is on.
     private var mainHotKey: GlobalHotKey?
+    /// Keeps suspended Carbon hotkeys recoverable even if SwiftUI discards a recorder.
+    private var recordingID: UUID?
+    private var recordingWatchdog: DispatchWorkItem?
+    private var isShuttingDown = false
     /// The optional double-tap-Command trigger.
     private var doubleTap: ModifierDoubleTapMonitor?
     /// Screen point the transient capsule's CURRENT selection is anchored to (the
@@ -193,6 +197,10 @@ final class PopBarController {
 
     /// Stop everything, the monitor included (app shutdown).
     func shutdown() {
+        isShuttingDown = true
+        recordingWatchdog?.cancel()
+        recordingWatchdog = nil
+        recordingID = nil
         resolveTask?.cancel()
         resolveGeneration &+= 1
         monitor.stop()
@@ -205,6 +213,38 @@ final class PopBarController {
         doubleTap = nil
         router.stopClipboard()
         router.closeAll()
+    }
+
+    private static let recordingWatchdogTimeout: TimeInterval = 16
+
+    /// Carbon consumes an app's own shortcut before a settings-window key monitor
+    /// sees it. Suspend all three registrations while any shortcut field records.
+    /// The controller owns restoration; a vanished SwiftUI view cannot strand them.
+    func beginHotKeyRecording() -> UUID {
+        if let recordingID { endHotKeyRecording(recordingID) }
+        let id = UUID()
+        recordingID = id
+        mainHotKey?.invalidate()
+        mainHotKey = nil
+        popupHotKey?.invalidate()
+        popupHotKey = nil
+        ocr.stop()
+        let watchdog = DispatchWorkItem { [weak self] in self?.endHotKeyRecording(id) }
+        recordingWatchdog = watchdog
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.recordingWatchdogTimeout, execute: watchdog)
+        return id
+    }
+
+    /// Idempotent: a successful setter may already have registered the new combo.
+    func endHotKeyRecording(_ id: UUID) {
+        guard recordingID == id else { return }
+        recordingID = nil
+        recordingWatchdog?.cancel()
+        recordingWatchdog = nil
+        guard !isShuttingDown else { return }
+        if MtoolPreferences.mainHotKeyEnabled { _ = registerMainHotKey() }
+        if PopBarPreferences.popupHotKeyEnabled { _ = registerPopupHotKey() }
+        ocr.startIfEnabled()
     }
 
     // MARK: - Popup hotkey (issue #4)
@@ -359,7 +399,9 @@ final class PopBarController {
     var doubleCommandAvailable: Bool { doubleTap?.isAvailable ?? false }
 
     func startDoubleCommandIfEnabled() {
-        guard MtoolPreferences.doubleCommandEnabled else { return }
+        guard MtoolPreferences.doubleCommandEnabled,
+              doubleTap?.isRunning != true,
+              AccessibilityAuthorizer.isTrusted else { return }
         _ = setDoubleCommandEnabled(true)
     }
 

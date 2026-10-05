@@ -22,8 +22,6 @@ final class ModifierDoubleTapMonitor {
     private var globalFlags: Any?
     private var globalKeys: Any?
     private var observers: [NSObjectProtocol] = []
-    /// Whether Command was down at the previous flagsChanged.
-    private var commandWasDown = false
     private(set) var isRunning = false
 
     init(threshold: TimeInterval = ModifierDoubleTapDetector.defaultThreshold) {
@@ -71,7 +69,6 @@ final class ModifierDoubleTapMonitor {
         for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         observers.removeAll()
         detector.reset()
-        commandWasDown = false
         if isRunning {
             isRunning = false
             onAvailabilityChanged?(false)
@@ -86,7 +83,6 @@ final class ModifierDoubleTapMonitor {
         // Secure input (a password prompt) must never be observed.
         if FocusedInputInspector.isSecureInputActive() {
             detector.handle(.secureInputActive, at: ProcessInfo.processInfo.systemUptime)
-            commandWasDown = event.modifierFlags.contains(.command)
             return
         }
         let flags = event.modifierFlags
@@ -94,17 +90,9 @@ final class ModifierDoubleTapMonitor {
         let otherModifiers = flags.contains(.shift) || flags.contains(.option) || flags.contains(.control)
         let now = ProcessInfo.processInfo.systemUptime
 
-        if otherModifiers {
-            detector.handle(.otherModifierChanged, at: now)
-        } else if commandDown && !commandWasDown {
-            detector.handle(.commandDown, at: now)
-        } else if !commandDown && commandWasDown {
-            let completed = detector.handle(.commandUp, at: now)
-            if completed {
-                Self.log.info("double-Command detected")
-                onTriggered?()
-            }
+        if detector.handleFlags(commandDown: commandDown, otherModifiers: otherModifiers, at: now) {
+            Self.log.info("double-Command detected")
+            onTriggered?()
         }
-        commandWasDown = commandDown
     }
 }

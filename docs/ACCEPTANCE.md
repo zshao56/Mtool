@@ -37,6 +37,13 @@ versions used.
 | 25 | Clipboard preserved during paste | Trigger a paste, then immediately copy something else | The new copy is still on the clipboard (not overwritten by the restore) | not run |
 | 26 | Image entry paste | Copy an image, open the panel in an input, choose it; then try when focus cannot be re-validated | Pastes only into the confirmed target, otherwise copies only | not run |
 | 27 | Browser/WeChat editable detection | Focus a browser search box / WeChat input (no selection) | Clipboard panel opens (role + writable attribute, not `AXEditable`) | not run |
+| 28 | Re-record ⌥Space | In Keyboard settings click the main recorder, then press ⌥Space | Recorder accepts the combo; no search panel opens while recording | not run |
+| 29 | Cancel main recording | Start recording, then press Esc, switch apps, close Settings, and wait for timeout in separate tries | The previous main shortcut works after every cancellation | not run |
+| 30 | Re-record OCR and popup shortcuts | Record each feature's current shortcut again while it is enabled | Recorder receives the combo without launching OCR or the action bar | not run |
+| 31 | Record double Command | Click the main recorder and double-tap Command | The local gesture is recognized and the double-Command switch turns on; global availability is shown separately | not run |
+| 32 | Double Command across apps | With Accessibility granted, double-tap Command in another app; repeat without permission | Opens the expected scene when available; lack of permission is shown, not reported as success | not run |
+| 33 | Search panel default layout | With no selection or editable focus, press the main shortcut | Compact question box opens with visible Ask, Translate and other configured modes below it | not run |
+| 34 | Search mode and screenshot | Choose Translate, ask a question, reopen, then use Screenshot | Selected mode is used; result appears; reopen is compact and empty; screenshot is copied | not run |
 
 ## Notes on limits
 
@@ -44,5 +51,6 @@ versions used.
   attribute: a known text role plus a writable `AXSelectedText`/`AXValue` is what
   routes to scenario 2, and a role alone never pastes. Row 27 is the one to run
   first on a real desktop.
-- Rows 1–3, 10, 18 and 27 are the highest risk: they exercise cross-process
-  accessibility that no unit test can cover.
+- Rows 1–3, 10, 18, 27 and 28–32 are the highest risk: they exercise cross-process
+  accessibility, Carbon hotkey suspension/restoration, and hardware modifier tap
+  sequences that no unit test can fully cover.

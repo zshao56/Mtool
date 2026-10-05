@@ -603,7 +603,9 @@
 "mtool.keyboard.main.subtitle" = "Press once: with selected text the action bar opens; in an editable box the clipboard panel opens; otherwise the quick search box opens. Press again to close.";
 "mtool.keyboard.main.label" = "Shortcut";
 "mtool.keyboard.main.occupied" = "This shortcut could not be registered — another app already uses it. Record a different one.";
-"mtool.keyboard.main.hint" = "Recommended: ⌥Space.";
+"mtool.keyboard.main.hint" = "Recommended: ⌥Space. You can also click the recorder and double-tap Command to enable that trigger.";
+"mtool.keyboard.record.timeout" = "No key received. Try again; macOS or another app may own that shortcut.";
+"mtool.keyboard.doubleCommand.recorded" = "Double-tap Command was recognized here. The status below shows whether it can trigger in other apps.";
 "mtool.keyboard.autoPopup.header" = "Selection";
 "mtool.keyboard.autoPopup.title" = "Open the action bar automatically after selecting text";
 "mtool.keyboard.autoPopup.subtitle" = "Off by default so reading is not interrupted. The main shortcut always works.";

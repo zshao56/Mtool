@@ -265,6 +265,14 @@ final class PopBarStore: ObservableObject {
 
     // MARK: - Popup hotkey (issue #4)
 
+    func beginHotKeyRecording() -> UUID { controller.beginHotKeyRecording() }
+
+    func endHotKeyRecording(_ id: UUID) {
+        controller.endHotKeyRecording(id)
+        popupHotKeyRegistered = controller.popupHotKeyIsRegistered
+        screenOCRRegistered = controller.screenOCRIsRegistered
+    }
+
     /// Turn the popup hotkey on or off. Returns false when turning it on could not
     /// register a recorded combo because another app holds it.
     @discardableResult

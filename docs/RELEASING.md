@@ -6,7 +6,7 @@ Mtool ships as a single universal `Mtool.dmg`. The workflow at
 ## What the workflow does
 
 1. `xcodegen generate`
-2. `xcodebuild test` (the pure-logic unit tests)
+2. `xcodebuild test` (unit test suite: 151 tests)
 3. `xcodebuild -configuration Release` for `x86_64 arm64`, **unsigned**
 4. Ad-hoc signs the app (`codesign --sign -`)
 5. Builds the DMG with `hdiutil`
@@ -26,12 +26,29 @@ Every release lists `Mtool.dmg` and `Mtool.dmg.sha256`. Verify with:
 shasum -a 256 -c Mtool.dmg.sha256
 ```
 
-## Gatekeeper
+## Gatekeeper and unnotarized preview builds
 
-Public builds are **not notarized**. On first launch macOS will refuse to open
-the app normally. The user must right-click the app and choose **Open**, then
-confirm. This must be stated in release notes; Mtool does not claim to be signed
-or notarized.
+Public builds and CI artifacts without Apple credentials are **unnotarized preview builds**
+(未公证预览构建). On first launch macOS Gatekeeper will refuse to open the app directly.
+The user must right-click `Mtool.app` (or right-click in `/Applications`) and choose **Open**,
+then confirm. This must be stated in release notes; Mtool does not claim to be signed with
+an Apple Developer ID certificate or notarized unless the repository owner supplies their own
+secrets.
+
+Automated CI build and unit test success confirms compilation and unit logic, but does
+**not** substitute for real cross-application desktop acceptance ([acceptance checklist](ACCEPTANCE.md)).
+
+### Verified preview build reference
+
+The preview build from `main` commit `fbc200f` (GitHub Actions run `37259409559`, 2026-10-05) completed with:
+- `xcodebuild test`: 151 tests, 0 failures.
+- Release build: succeeded (universal `x86_64 arm64` binary).
+- DMG artifact: `Mtool.dmg` containing `Mtool.app` and `/Applications` shortcut.
+- SHA-256: `992b520b6165f1954b2fdbec9742d5ee30e5116fd68c545723542d779cb57444`.
+- Local verification: `shasum -a 256 -c` passed, `hdiutil verify` valid, and `codesign --verify --deep --strict` passed.
+
+That hash identifies the earlier `main` workflow artifact only. A tag build creates
+a new DMG; verify a release download with the `.sha256` attached to **that release**.
 
 ## Optional: Developer ID signing and notarization
 
@@ -58,7 +75,8 @@ signing material to the repository (`.gitignore` already excludes `*.p12`,
 ## Cutting a release
 
 ```sh
-# bump MARKETING_VERSION / CURRENT_PROJECT_VERSION in project.yml, commit, then:
+# bump MARKETING_VERSION / CURRENT_PROJECT_VERSION in project.yml, create
+# docs/releases/<tag>.md with installation and verification notes, and commit, then:
 git tag v1.0.0
 git push origin v1.0.0
 ```

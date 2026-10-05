@@ -86,5 +86,5 @@ Mtool 是面向科研日常工作的 macOS 菜单栏工具。用户按一个可�
 ## 7. 依赖和边界
 
 - Linux 环境没有 Xcode、真实 macOS 辅助功能及 `hdiutil`。必须依赖 macOS GitHub Actions 编译打包；跨应用操作仍需真人在 macOS 上验收。
-- GitHub 仓库 `zshao56/Mtool` 当前无提交。推送需要当前环境具备该仓库写权限；若认证失败，保留本地已审核的提交与构建脚本，并记录准确阻塞原因。
+- GitHub 仓库 `zshao56/Mtool` 已有提交。2026-10-05 的 `main` CI（run `37259409559`）完成 151 项测试、Release 构建和 DMG 打包；后续发布仍需完成真实桌面验收并记录结果。
 - Apple Developer ID 签名/公证需要用户自己的证书和 Apple 凭据。先交付未签名 DMG；后续提供配置签名与公证的路径，不接触或要求用户在聊天中提供私钥。

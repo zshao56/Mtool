@@ -51,6 +51,7 @@ final class MtoolSettingsStore: ObservableObject {
     }
 
     func refresh() {
+        controller.startDoubleCommandIfEnabled()
         let reg = controller.mainHotKeyIsRegistered
         if reg != mainHotKeyRegistered { mainHotKeyRegistered = reg }
         let avail = controller.doubleCommandAvailable
@@ -59,6 +60,13 @@ final class MtoolSettingsStore: ObservableObject {
     }
 
     // MARK: - Main shortcut
+
+    func beginHotKeyRecording() -> UUID { controller.beginHotKeyRecording() }
+
+    func endHotKeyRecording(_ id: UUID) {
+        controller.endHotKeyRecording(id)
+        mainHotKeyRegistered = controller.mainHotKeyIsRegistered
+    }
 
     @discardableResult
     func setMainHotKeyEnabled(_ on: Bool) -> Bool {
@@ -98,6 +106,10 @@ final class MtoolSettingsStore: ObservableObject {
     func setDoubleCommandThreshold(_ ms: Double) {
         doubleCommandThreshold = ms
         controller.setDoubleCommandThreshold(ms / 1000)
+    }
+
+    func openAccessibilitySettings() {
+        AccessibilityAuthorizer.openSettings()
     }
 
     // MARK: - Clipboard

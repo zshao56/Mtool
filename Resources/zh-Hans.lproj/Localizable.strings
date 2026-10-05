@@ -602,7 +602,9 @@
 "mtool.keyboard.main.subtitle" = "按一次：有选中文字时打开动作栏；在可编辑输入框中打开剪贴板面板；其他情况打开快速搜索框。再按一次关闭。";
 "mtool.keyboard.main.label" = "快捷键";
 "mtool.keyboard.main.occupied" = "该快捷键无法注册，可能已被其他应用占用，请重新录制一个。";
-"mtool.keyboard.main.hint" = "推荐使用 ⌥Space。";
+"mtool.keyboard.main.hint" = "推荐使用 ⌥Space；也可点击上方录制框，连按两下 Command 来启用双击触发。";
+"mtool.keyboard.record.timeout" = "未收到按键，请重试；该组合可能被系统或其他应用占用。";
+"mtool.keyboard.doubleCommand.recorded" = "已识别双击 Command。下方状态显示它能否在其他应用中触发。";
 "mtool.keyboard.autoPopup.header" = "选区";
 "mtool.keyboard.autoPopup.title" = "选中文字后自动弹出动作栏";
 "mtool.keyboard.autoPopup.subtitle" = "默认关闭，以免打断阅读。主快捷键始终可用。";

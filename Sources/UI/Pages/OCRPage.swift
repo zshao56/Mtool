@@ -32,7 +32,11 @@ struct OCRPage: View {
 
                 if store.screenOCREnabled {
                     LabeledContent {
-                        HotKeyRecorderField(combo: store.screenOCRHotKey) { combo in
+                        HotKeyRecorderField(
+                            combo: store.screenOCRHotKey,
+                            onBeginRecording: { store.beginHotKeyRecording() },
+                            onEndRecording: { store.endHotKeyRecording($0) }
+                        ) { combo in
                             hotKeyError = !store.setScreenOCRHotKey(combo)
                         }
                     } label: {

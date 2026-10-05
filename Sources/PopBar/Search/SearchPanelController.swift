@@ -26,12 +26,14 @@ final class SearchPanelController {
         model.onClose = { [weak self] in self?.onCloseRequested?() }
         model.onSubmit = { [weak self] text, mode in self?.run(text: text, mode: mode) }
         model.onScreenshot = { [weak self] in self?.beginScreenshot() }
+        model.onResize = { [weak self] in self?.resizePanel() }
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
     func show(near anchor: CGPoint) {
         let panel = ensurePanel()
+        model.resetForOpen()
         // Refresh the mode list from the current actions each time it opens.
         model.loadModes(from: actionStore.actions)
         position(panel, near: anchor)
@@ -95,7 +97,8 @@ final class SearchPanelController {
         if let panel { return panel }
         let hosting = NSHostingController(rootView: SearchPanelView(model: model))
         let panel = MtoolFloatingPanel(contentViewController: hosting)
-        panel.setContentSize(NSSize(width: 520, height: 340))
+        panel.setContentSize(NSSize(width: 560, height: 160))
+        panel.contentView?.layer?.cornerRadius = 24
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.animationBehavior = .utilityWindow
@@ -106,6 +109,11 @@ final class SearchPanelController {
             self?.onCloseRequested?()
         }
         return panel
+    }
+
+    private func resizePanel() {
+        guard let panel else { return }
+        panel.setContentSize(NSSize(width: 560, height: model.showsOutput ? 370 : 160))
     }
 
     private func position(_ panel: NSPanel, near anchor: CGPoint) {

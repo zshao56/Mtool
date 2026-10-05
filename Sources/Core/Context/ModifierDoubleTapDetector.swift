@@ -48,6 +48,7 @@ struct ModifierDoubleTapDetector {
 
     private var phase: Phase = .idle
     private var firstReleaseAt: TimeInterval?
+    private(set) var commandWasDown = false
 
     init(threshold: TimeInterval = ModifierDoubleTapDetector.defaultThreshold) {
         self.threshold = threshold
@@ -56,6 +57,25 @@ struct ModifierDoubleTapDetector {
     mutating func reset() {
         phase = .idle
         firstReleaseAt = nil
+        commandWasDown = false
+    }
+
+    /// Translates modifier transitions (command flag and other modifier flags) into
+    /// detector events. Returns true when the second Command release completes the gesture.
+    @discardableResult
+    mutating func handleFlags(commandDown: Bool, otherModifiers: Bool, at time: TimeInterval) -> Bool {
+        defer { commandWasDown = commandDown }
+        if otherModifiers {
+            handle(.otherModifierChanged, at: time)
+            return false
+        }
+        if commandDown && !commandWasDown {
+            return handle(.commandDown, at: time)
+        }
+        if !commandDown && commandWasDown {
+            return handle(.commandUp, at: time)
+        }
+        return false
     }
 
     /// Feed one event. Returns `true` exactly on the event that completes a

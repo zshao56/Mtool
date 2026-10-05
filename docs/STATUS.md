@@ -5,27 +5,30 @@ to be updated as work lands.
 
 ## Verified
 
-- **Pure logic unit tests pass** (44 tests): three-scene routing
-  (`ContextRoutingTests`, including tri-state editable detection and the
-  stale-PID check), the double-tap Command detector (`ModifierDoubleTapTests`),
-  UTF-16 text insertion (`TextInsertionTests`, including the `end == count`
-  boundary), clipboard policy (`ClipboardPolicyTests`) and the clipboard SQLite
-  store (`ClipboardStoreTests` — round trip, de-duplication, pinning, retention,
-  capacity, search, snippets and snippet reordering). These were compiled and run
-  with a Swift 5.10 toolchain; the store tests ran against the system SQLite.
+- **Automated CI build and unit tests pass** (commit `fbc200f`, GitHub Actions run `37259409559` on 2026-10-05):
+  - `xcodebuild test` executed 151 unit tests with **0 failures** on macOS runner.
+  - Release build succeeded (universal binary for `x86_64` and `arm64`).
+  - `Mtool.dmg` produced as a workflow artifact; the app uses an ad-hoc signature, not an Apple Developer ID signature.
+- **Artifact integrity verified locally after download**:
+  - `shasum -a 256 -c` verified (SHA-256: `992b520b6165f1954b2fdbec9742d5ee30e5116fd68c545723542d779cb57444`).
+  - `hdiutil verify` confirmed valid disk image.
+  - DMG volume structure contains `Mtool.app` and `/Applications` shortcut.
+  - Ad-hoc signature passes `codesign --verify --deep --strict`.
+  - Confirmed as an **unnotarized preview build** (未公证预览构建); macOS Gatekeeper requires right-click → Open on first run.
 - **Every Swift file parses** (`swiftc -parse` over all sources).
 - **`project.yml` and the GitHub Actions workflow are valid YAML**, and
   `ConfigSchema.json` is valid JSON.
 
 ## NOT verified
 
-- **The macOS app has not been compiled.** There is no macOS/Xcode toolchain in
-  the environment where this was written, and the GitHub repository cannot be
-  pushed to from here (no credentials), so CI has not run. The AppKit/SwiftUI
-  code is only syntax-checked.
-- **No DMG has been produced.** It is built by CI on a macOS runner.
-- **No real-desktop acceptance has been done.** The checklist in
-  `docs/ACCEPTANCE.md` is unrun.
+- **Local compilation environment**: The local development machine only has Xcode
+  CommandLineTools (no full `Xcode.app`), so local app compilation and local `xcodebuild`
+  are not available. All builds and automated tests currently run on GitHub Actions macOS runners.
+- **No real-desktop acceptance has been done**: The 34 checklist items in
+  `docs/ACCEPTANCE.md` are **unrun**. CI build and test success proves compilation,
+  packaging integrity, and unit logic, but **must NOT be conflated with real-world functional
+  desktop acceptance**. Actual cross-application Accessibility permissions, system focus
+  switches, pasteboard restoration, and window behaviors still require manual desktop testing.
 
 ## Deliberately conservative behaviour
 
@@ -72,3 +75,8 @@ to be updated as work lands.
 - Snippets and history share one ↑/↓/Enter navigation order (snippets first), the
   editor owns the keyboard while open, and every row's paste area is a separate
   control from its action buttons.
+- Fixed static logger references across controllers (`Self.log`) and explicit closure
+  captures (`self.generation`, `self.isRunning`).
+- Aligned `ActionRoundTripTests` with the 6 research presets (5 AI presets + copy),
+  verifying polish compare mode and serialization round-trip; automated test suite expanded
+  to 151 tests with 0 failures on CI runner.

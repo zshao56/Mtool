@@ -29,9 +29,20 @@ final class SearchPanelModel: ObservableObject {
     var onClose: (() -> Void)?
     var onScreenshot: (() -> Void)?
     var onSubmit: ((String, SearchMode) -> Void)?
+    var onResize: (() -> Void)?
+
+    var showsOutput: Bool { busy || error != nil || !result.isEmpty }
 
     var selectedMode: SearchMode {
         modes.first { $0.id == selectedModeID } ?? modes.first ?? SearchMode.askMode()
+    }
+
+    func resetForOpen() {
+        query = ""
+        result = ""
+        error = nil
+        busy = false
+        onResize?()
     }
 
     func loadModes(from actions: [PopBarActionConfig]) {
@@ -54,96 +65,113 @@ final class SearchPanelModel: ObservableObject {
         result = ""
         busy = true
         onSubmit?(text, selectedMode)
+        onResize?()
     }
 
-    func appendStream(_ text: String) { result = text }
+    func appendStream(_ text: String) {
+        result = text
+        onResize?()
+    }
 
     func finish(result: String?, error: String?) {
         busy = false
         if let result, !result.isEmpty { self.result = result }
         self.error = error
+        onResize?()
     }
 }
 
-/// The quick-search box (scenario 3). A question field with a mode menu, a
-/// screenshot-and-copy shortcut, and a streaming result.
+/// The quick-search box (scenario 3). Modes stay visible under the question,
+/// with screenshot and submit actions fixed at the edges of the bottom row.
 struct SearchPanelView: View {
     @ObservedObject var model: SearchPanelModel
     @FocusState private var queryFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "sparkle.magnifyingglass").foregroundStyle(.secondary)
-                TextField(L("search.placeholder"), text: $model.query)
-                    .textFieldStyle(.plain)
-                    .focused($queryFocused)
-                    .onSubmit { model.submit() }
-                if !model.modes.isEmpty {
-                    Picker("", selection: $model.selectedModeID) {
-                        ForEach(model.modes) { mode in Text(mode.title).tag(mode.id) }
-                    }
-                    .labelsHidden()
-                    .frame(maxWidth: 150)
-                }
-                Button { model.submit() } label: {
-                    Image(systemName: "arrow.right.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .disabled(model.query.trimmingCharacters(in: .whitespaces).isEmpty || model.busy)
-                Button { model.onClose?() } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 12).padding(.vertical, 9)
+            TextField(L("search.placeholder"), text: $model.query, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.system(size: 19))
+                .lineLimit(1...3)
+                .focused($queryFocused)
+                .onSubmit { model.submit() }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.horizontal, 24)
+                .padding(.top, 23)
 
-            Divider()
-
-            HStack(spacing: 8) {
-                Button {
-                    model.onScreenshot?()
-                } label: {
+            HStack(spacing: 10) {
+                Button { model.onScreenshot?() } label: {
                     Label(L("search.screenshot"), systemImage: "camera.viewfinder")
-                        .font(.system(size: 11))
+                        .font(.system(size: 12))
                 }
-                .buttonStyle(.borderless)
-                Spacer()
+                .buttonStyle(.plain)
+                .help(L("search.screenshot"))
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(model.modes) { mode in
+                            Button {
+                                model.selectedModeID = mode.id
+                                queryFocused = true
+                            } label: {
+                                Text(mode.title)
+                                    .font(.system(size: 12, weight: model.selectedModeID == mode.id ? .semibold : .regular))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(model.selectedModeID == mode.id ? Color.accentColor.opacity(0.14) : Color.clear,
+                                                in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(mode.title)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
                 if model.busy { ProgressView().controlSize(.small) }
-                if !model.result.isEmpty {
-                    Button {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(model.result, forType: .string)
-                    } label: {
-                        Image(systemName: "doc.on.doc").font(.system(size: 11))
-                    }
-                    .buttonStyle(.borderless)
-                    .help(L("search.copyResult"))
+                Button { model.submit() } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                        .foregroundStyle(.white)
+                        .background(Color.accentColor, in: Circle())
                 }
+                .buttonStyle(.plain)
+                .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy)
+                .opacity(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy ? 0.45 : 1)
             }
-            .padding(.horizontal, 12).padding(.vertical, 6)
+            .padding(.horizontal, 22)
+            .padding(.bottom, 17)
 
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let error = model.error {
-                        Text(error).font(.system(size: 12)).foregroundStyle(.red)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else if model.result.isEmpty {
-                        Text(L("search.hint"))
-                            .font(.system(size: 11)).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else {
-                        Text(model.result).font(.system(size: 12)).textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
+            if model.showsOutput {
+                Divider()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let error = model.error {
+                            Text(error).foregroundStyle(.red)
+                        } else {
+                            Text(model.result).textSelection(.enabled)
+                        }
+                        if !model.result.isEmpty {
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(model.result, forType: .string)
+                            } label: {
+                                Label(L("search.copyResult"), systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.borderless)
+                        }
                     }
+                    .font(.system(size: 13))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
+                .frame(height: 200)
             }
         }
-        .frame(width: 520, height: 340)
+        .frame(width: 560, height: model.showsOutput ? 370 : 160)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .onAppear { queryFocused = true }
     }
 }
