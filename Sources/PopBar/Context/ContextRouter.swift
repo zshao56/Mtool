@@ -170,41 +170,69 @@ final class ContextRouter {
     // MARK: - Paste
 
     /// Paste a history/snippet entry into the original target, validating first.
+    ///
+    /// Safety is enforced in two stages:
+    ///  1. the captured snapshot must still describe a running, non-secure
+    ///     element in the same app;
+    ///  2. our panel is closed and the original app is brought back, and only
+    ///     after focus has settled do we re-read the system-wide focused element
+    ///     and require it to be the *same* element (pid + identity). Only then do
+    ///     we write, or fall back to a synthesised ⌘V. On any mismatch the entry
+    ///     is copied and the user is told — nothing is typed into another window.
     private func paste(_ item: ClipboardItem) {
         guard let text = item.text, !text.isEmpty else {
             // Images cannot be pasted through a text field; copy them instead.
             copyOnly(item)
             return
         }
-        guard let snap = snapshot, let pid = snap.frontAppPID else {
+        guard let snap = snapshot, let pid = snap.frontAppPID, let captured = snapshotElement else {
+            log.info("no captured editable target — copying only")
             copyOnly(item)
             return
         }
-        // Re-validate the target: same app, still focused, not secure.
         let target = NSRunningApplication(processIdentifier: pid_t(pid))
         guard target?.bundleIdentifier == snap.frontAppBundleID,
-              snapshotElement != nil,
               !FocusedInputInspector.isSecureInputActive(),
-              FocusedInputInspector.inspect(snapshotElement).isSecure == false else {
+              !FocusedInputInspector.inspect(captured).isSecure else {
             log.info("paste target no longer valid — copying only")
             copyOnly(item)
             return
         }
 
-        // Preferred: write through accessibility, which needs no synthetic ⌘V.
-        if let element = snapshotElement, FocusedInputInspector.writeText(text, to: element) {
-            store.markUsed(id: item.id)
-            log.info("pasted via AX (\(text.count) chars)")
-            closeAll()
+        // Dismiss our panel and hand focus back BEFORE re-reading, so the
+        // focused-element query describes the original app, not our panel.
+        closeAll()
+        let pasteGeneration = generation
+        target?.activate(options: [])
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self, self.generation == pasteGeneration else { return }
+            self.finishPaste(text, item: item, captured: captured)
+        }
+    }
+
+    /// Re-read the system focus after it has been restored and only proceed when
+    /// it is the captured element.
+    private func finishPaste(_ text: String, item: ClipboardItem, captured: AXUIElement) {
+        let current = FocusedInputInspector.focusedElement()
+        guard let current, FocusedInputInspector.isSameElement(current, captured) else {
+            log.info("focus did not return to the captured element — copying only")
+            copyOnly(item)
             return
         }
 
-        // Fallback: restore the target's focus, paste from a transient clipboard,
-        // then put the user's clipboard back.
-        synthesizePaste(text, into: target, item: item)
+        // Preferred: a position-correct accessibility write.
+        if FocusedInputInspector.writeText(text, to: current) {
+            store.markUsed(id: item.id)
+            log.info("pasted via AX (\(text.count) chars)")
+            return
+        }
+
+        // Focus is confirmed, so a transient-clipboard ⌘V lands in the right place.
+        synthesizePaste(text, item: item)
     }
 
-    private func synthesizePaste(_ text: String, into target: NSRunningApplication?, item: ClipboardItem) {
+    private func synthesizePaste(_ text: String, item: ClipboardItem) {
         let backup = Pasteboard.backup()
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
@@ -213,17 +241,15 @@ final class ContextRouter {
         pasteboard.setData(Data(), forType: Pasteboard.Marker.transient)
         watcher.resync()
 
-        target?.activate(options: [])
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+        // Focus was already restored and verified; post the paste without
+        // re-activating anything (which could move focus again).
+        KeySender.paste()
+        store.markUsed(id: item.id)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self else { return }
-            KeySender.paste()
-            self.store.markUsed(id: item.id)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                Pasteboard.restore(backup)
-                self.watcher.resync()
-            }
+            Pasteboard.restore(backup)
+            self.watcher.resync()
         }
-        closeAll()
     }
 
     /// Copy an entry to the clipboard without touching the original target.

@@ -5,13 +5,14 @@ to be updated as work lands.
 
 ## Verified
 
-- **Pure logic unit tests pass** (32 tests): three-scene routing
+- **Pure logic unit tests pass** (39 tests): three-scene routing
   (`ContextRoutingTests`, including the stale-PID check), the double-tap Command
-  detector (`ModifierDoubleTapTests`), clipboard policy (`ClipboardPolicyTests`)
-  and the clipboard SQLite store (`ClipboardStoreTests` — round trip,
-  de-duplication, pinning, retention, capacity, search, snippets and snippet
-  reordering). These were compiled and run with a Swift 5.10 toolchain; the
-  store tests ran against the system SQLite.
+  detector (`ModifierDoubleTapTests`), UTF-16 text insertion
+  (`TextInsertionTests`), clipboard policy (`ClipboardPolicyTests`) and the
+  clipboard SQLite store (`ClipboardStoreTests` — round trip, de-duplication,
+  pinning, retention, capacity, search, snippets and snippet reordering). These
+  were compiled and run with a Swift 5.10 toolchain; the store tests ran against
+  the system SQLite.
 - **Every Swift file parses** (`swiftc -parse` over all sources).
 - **`project.yml` and the GitHub Actions workflow are valid YAML**, and
   `ConfigSchema.json` is valid JSON.
@@ -47,6 +48,15 @@ to be updated as work lands.
 
 - Saved snippets (常用词) can now be created, edited (title + content), reordered
   with up/down controls and deleted from the panel; all of it is persisted and
-  the panel is usable from the keyboard. The async selection read now compares
-  the frontmost process id on return and discards a result whose app is no longer
-  frontmost.
+  the panel is usable from the keyboard. Clicking a snippet pastes it through the
+  same validated path as a history entry, with a separate copy button.
+- The async selection read compares the frontmost process id on return and
+  discards a result whose app is no longer frontmost.
+- Accessibility writes are now strictly position-correct: `AXSelectedText`
+  first, otherwise a UTF-16-range splice into `AXValue` when the caret range is
+  readable (`TextInsertion`). A blind `AXValue` append was removed.
+- Pasting re-validates more strongly: the panel is dismissed, the original app
+  is brought back, and the system-wide focused element is re-read after focus
+  settles. The write (or the synthesised ⌘V) only happens when the focused
+  element is the *same* AX element (pid + identity). Any mismatch copies the
+  entry and shows a toast instead.

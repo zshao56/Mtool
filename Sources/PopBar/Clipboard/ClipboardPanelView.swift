@@ -280,6 +280,12 @@ struct ClipboardPanelView: View {
         .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
+    private func snippetItem(_ snippet: Snippet) -> ClipboardItem {
+        ClipboardItem(kind: .text, text: snippet.text,
+                      contentHash: ClipboardPolicyEngine.dedupeKey(
+                        kind: .text, text: snippet.text, imageDigest: nil))
+    }
+
     private func snippetRow(_ snippet: Snippet) -> some View {
         HStack(spacing: 9) {
             Image(systemName: "pin.fill")
@@ -294,8 +300,7 @@ struct ClipboardPanelView: View {
             }
             Spacer(minLength: 4)
             HStack(spacing: 6) {
-                Button { model.onCopy?(ClipboardItem(kind: .text, text: snippet.text,
-                                                     contentHash: snippet.text)) } label: {
+                Button { model.onCopy?(snippetItem(snippet)) } label: {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.plain).help(L("clipboard.copy"))
@@ -322,6 +327,9 @@ struct ClipboardPanelView: View {
         }
         .padding(.horizontal, 12).padding(.vertical, 6)
         .contentShape(Rectangle())
+        // A click on the row pastes through the same validated path as a history
+        // entry; the explicit copy button above is the copy-only alternative.
+        .onTapGesture { model.onPaste?(snippetItem(snippet)) }
     }
 
     private func actions(for item: ClipboardItem) -> some View {

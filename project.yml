@@ -119,6 +119,7 @@ targets:
       # Mtool additions
       - path: Sources/Core/Context/ContextSnapshot.swift
       - path: Sources/Core/Context/ModifierDoubleTapDetector.swift
+      - path: Sources/Core/Context/TextInsertion.swift
       - path: Sources/Core/Clipboard/ClipboardItem.swift
       - path: Sources/Core/Clipboard/ClipboardPolicy.swift
       - path: Sources/Core/Clipboard/ClipboardStore.swift
