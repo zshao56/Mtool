@@ -1,12 +1,16 @@
 import SwiftUI
 
-/// The Keyboard page: the main three-scene shortcut and the optional double-tap
-/// Command trigger.
+/// The Keyboard page: the main three-scene shortcut, the selection toggle, and
+/// the optional modifier-only double-tap trigger.
+///
+/// The two recording controls are deliberately separate and self-describing. The
+/// main shortcut is a Carbon combo (a key plus ⌘/⌥/⌃); the double-tap is a
+/// modifier-only gesture whose left/right side matters. Letting one recorder do
+/// both was the source of the unreliability this page fixes.
 struct KeyboardPage: View {
 
     @ObservedObject private var store: MtoolSettingsStore
     @State private var hotKeyError = false
-    @State private var doubleCommandRecorded = false
     private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     init(store: MtoolSettingsStore) {
@@ -26,14 +30,8 @@ struct KeyboardPage: View {
                         HotKeyRecorderField(
                             combo: store.mainHotKey,
                             onBeginRecording: { store.beginHotKeyRecording() },
-                            onEndRecording: { store.endHotKeyRecording($0) },
-                            onDoubleCommandRecorded: {
-                                doubleCommandRecorded = true
-                                _ = store.setDoubleCommandEnabled(true)
-                            },
-                            doubleCommandThreshold: store.doubleCommandThreshold / 1000
+                            onEndRecording: { store.endHotKeyRecording($0) }
                         ) { combo in
-                            doubleCommandRecorded = false
                             hotKeyError = !store.setMainHotKey(combo)
                         }
                     } label: {
@@ -72,10 +70,34 @@ struct KeyboardPage: View {
                                  L("mtool.keyboard.doubleCommand.subtitle"))
                 }
                 if store.doubleCommandEnabled {
-                    if doubleCommandRecorded {
-                        Text(L("mtool.keyboard.doubleCommand.recorded"))
-                            .font(.caption).foregroundStyle(.secondary)
+                    LabeledContent {
+                        HStack(spacing: 10) {
+                            // Records whichever side the user actually taps twice.
+                            ModifierDoubleTapRecorderField(
+                                key: store.doubleCommandKey,
+                                threshold: store.doubleCommandThreshold / 1000,
+                                onBeginRecording: { store.beginHotKeyRecording() },
+                                onEndRecording: { store.endHotKeyRecording($0) }
+                            ) { key in
+                                store.setDoubleCommandKey(key)
+                            }
+                            // Explicit choice, including the legacy "either Command"
+                            // that a config written before sides existed still uses.
+                            Picker("", selection: Binding(get: { store.doubleCommandKey },
+                                                          set: { store.setDoubleCommandKey($0) })) {
+                                ForEach(ModifierTapKey.allCases) { key in
+                                    Text(L(key.localizationKey)).tag(key)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 190)
+                        }
+                    } label: {
+                        iconLabel("command", .indigo, L("mtool.keyboard.doubleCommand.key"))
                     }
+                    Text(L("mtool.keyboard.doubleCommand.key.hint"))
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     LabeledContent {
                         HStack {
                             Slider(value: Binding(get: { store.doubleCommandThreshold },

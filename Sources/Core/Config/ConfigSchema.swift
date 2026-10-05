@@ -26,7 +26,7 @@ enum ConfigSchema {
 
         "main": {
           "type": "object",
-          "description": "Mtool's main shortcut and the optional double-tap Command trigger.",
+          "description": "Mtool's main shortcut and the optional modifier double-tap trigger.",
           "properties": {
             "hotKeyEnabled": { "type": "boolean",
               "description": "Register the main three-scene shortcut. Default true." },
@@ -37,9 +37,12 @@ enum ConfigSchema {
             "autoPopupDelayMs": { "type": "number", "minimum": 0, "maximum": 2000,
               "description": "Delay before the automatic popup, so a double/triple click resolves first." },
             "doubleCommandEnabled": { "type": "boolean",
-              "description": "Trigger the main shortcut by double-tapping Command. Default false; needs Accessibility/Input Monitoring." },
+              "description": "Trigger the main shortcut by double-tapping a modifier. Default false; needs Accessibility/Input Monitoring." },
+            "doubleCommandKey": { "type": "string",
+              "enum": ["anyCommand", "leftCommand", "rightCommand", "leftOption", "rightOption"],
+              "description": "Which physical modifier the double-tap listens for. A config written before this key defaults to anyCommand (either Command key), preserving the original behaviour." },
             "doubleCommandThresholdMs": { "type": "number", "minimum": 150, "maximum": 600,
-              "description": "Maximum interval between the two Command releases, in milliseconds. Default 350." }
+              "description": "Maximum interval between the two modifier releases, in milliseconds. Default 350." }
           },
           "additionalProperties": true
         },

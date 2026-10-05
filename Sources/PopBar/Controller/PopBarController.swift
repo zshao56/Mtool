@@ -231,6 +231,11 @@ final class PopBarController {
         popupHotKey?.invalidate()
         popupHotKey = nil
         ocr.stop()
+        // The double-tap trigger watches the same global flagsChanged stream the
+        // settings recorder listens on. Stop it while recording so performing a
+        // gesture to record it cannot fire the real shortcut behind the sheet.
+        doubleTap?.stop()
+        doubleTap = nil
         let watchdog = DispatchWorkItem { [weak self] in self?.endHotKeyRecording(id) }
         recordingWatchdog = watchdog
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.recordingWatchdogTimeout, execute: watchdog)
@@ -247,6 +252,7 @@ final class PopBarController {
         if MtoolPreferences.mainHotKeyEnabled { _ = registerMainHotKey() }
         if PopBarPreferences.popupHotKeyEnabled { _ = registerPopupHotKey() }
         ocr.startIfEnabled()
+        startDoubleCommandIfEnabled()
     }
 
     // MARK: - Popup hotkey (issue #4)
@@ -412,10 +418,14 @@ final class PopBarController {
         MtoolPreferences.doubleCommandEnabled = on
         if on {
             if doubleTap == nil {
-                let monitor = ModifierDoubleTapMonitor(threshold: MtoolPreferences.doubleCommandThreshold)
+                let monitor = ModifierDoubleTapMonitor(key: MtoolPreferences.doubleCommandKey,
+                                                       threshold: MtoolPreferences.doubleCommandThreshold)
                 monitor.onTriggered = { [weak self] in self?.mainHotKeyPressed() }
                 doubleTap = monitor
             }
+            // Keep a live monitor in step with the config: the key or threshold
+            // may have changed while it was stopped for a recording.
+            doubleTap?.setKey(MtoolPreferences.doubleCommandKey)
             doubleTap?.setThreshold(MtoolPreferences.doubleCommandThreshold)
             doubleTap?.start()
             return doubleTap?.isAvailable ?? false
@@ -423,6 +433,13 @@ final class PopBarController {
         doubleTap?.stop()
         doubleTap = nil
         return true
+    }
+
+    /// Persist the recorded side and apply it to the running monitor without a
+    /// restart, so flipping the setting takes effect immediately.
+    func setDoubleCommandKey(_ key: ModifierTapKey) {
+        MtoolPreferences.doubleCommandKey = key
+        doubleTap?.setKey(key)
     }
 
     func setDoubleCommandThreshold(_ threshold: TimeInterval) {

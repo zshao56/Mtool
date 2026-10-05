@@ -10,6 +10,7 @@ enum MtoolPreferences {
         static let mainHotKey          = "main.hotKey"
         static let mainHotKeyEnabled   = "main.hotKeyEnabled"
         static let doubleCommand       = "main.doubleCommandEnabled"
+        static let doubleCommandKey    = "main.doubleCommandKey"
         static let doubleCommandMs     = "main.doubleCommandThresholdMs"
         static let autoPopupOnSelect   = "main.autoPopupOnSelect"
         static let autoPopupDelayMs    = "main.autoPopupDelayMs"
@@ -48,7 +49,20 @@ enum MtoolPreferences {
         set { config.set(P.doubleCommand, newValue) }
     }
 
-    /// Threshold between the two Command releases, in milliseconds. Clamped to
+    /// Which physical modifier the double-tap listens for. An absent or
+    /// unrecognised value falls back to `.anyCommand`, which is exactly the old
+    /// two-Command behaviour — so a config written before sides were
+    /// configurable keeps working untouched.
+    static var doubleCommandKey: ModifierTapKey {
+        get {
+            guard let raw = config.optionalString(P.doubleCommandKey),
+                  let key = ModifierTapKey(rawValue: raw) else { return .anyCommand }
+            return key
+        }
+        set { config.set(P.doubleCommandKey, newValue.rawValue) }
+    }
+
+    /// Threshold between the two modifier releases, in milliseconds. Clamped to
     /// the detector's allowed range.
     static var doubleCommandThreshold: TimeInterval {
         get {

@@ -599,21 +599,28 @@
 
 "mtool.keyboard.main.header" = "主快捷键";
 "mtool.keyboard.main.title" = "三场景快捷键";
-"mtool.keyboard.main.subtitle" = "按一次：有选中文字时打开动作栏；在可编辑输入框中打开剪贴板面板；其他情况打开快速搜索框。再按一次关闭。";
+"mtool.keyboard.main.subtitle" = "按一次：有选中文字时打开动作栏；其他情况打开带剪贴板入口的提问框。再按一次关闭。";
 "mtool.keyboard.main.label" = "快捷键";
 "mtool.keyboard.main.occupied" = "该快捷键无法注册，可能已被其他应用占用，请重新录制一个。";
-"mtool.keyboard.main.hint" = "推荐使用 ⌥Space；也可点击上方录制框，连按两下 Command 来启用双击触发。";
+"mtool.keyboard.main.hint" = "推荐使用 ⌥Space。双击触发在下方有独立录制框。";
 "mtool.keyboard.record.timeout" = "未收到按键，请重试；该组合可能被系统或其他应用占用。";
-"mtool.keyboard.doubleCommand.recorded" = "已识别双击 Command。下方状态显示它能否在其他应用中触发。";
 "mtool.keyboard.autoPopup.header" = "选区";
 "mtool.keyboard.autoPopup.title" = "选中文字后自动弹出动作栏";
 "mtool.keyboard.autoPopup.subtitle" = "默认关闭，以免打断阅读。主快捷键始终可用。";
-"mtool.keyboard.doubleCommand.header" = "双击 Command";
-"mtool.keyboard.doubleCommand.title" = "双击 Command 触发";
-"mtool.keyboard.doubleCommand.subtitle" = "在其他应用中快速按下两次 Command。需要辅助功能或输入监控权限。";
+"mtool.keyboard.doubleCommand.header" = "双击修饰键";
+"mtool.keyboard.doubleCommand.title" = "双击修饰键触发";
+"mtool.keyboard.doubleCommand.subtitle" = "在其他应用中快速连按两下同一个修饰键，左右分别录制。需要辅助功能或输入监控权限。";
+"mtool.keyboard.doubleCommand.key" = "触发按键";
+"mtool.keyboard.doubleCommand.key.hint" = "点击录制框后连按两下同一修饰键，会自动识别左右；也可在右侧直接选择。“任意 Command”保留原有的左右任一行为。";
+"mtool.keyboard.doubleCommand.key.recording" = "连按两下修饰键…";
 "mtool.keyboard.doubleCommand.threshold" = "最大间隔";
-"mtool.keyboard.doubleCommand.unavailable" = "macOS 未向本应用提供修饰键事件，因此无法在此捕获双击 Command。";
-"mtool.keyboard.footer" = "主快捷键与双击 Command 打开相同的三个场景。";
+"mtool.keyboard.doubleCommand.unavailable" = "macOS 未向本应用提供修饰键事件，因此无法在此捕获双击触发。";
+"mtool.keyboard.footer" = "主快捷键与双击修饰键打开相同的三个场景。";
+"mtool.keyboard.modifier.anyCommand" = "任意 Command（⌘）";
+"mtool.keyboard.modifier.leftCommand" = "左 Command（⌘）";
+"mtool.keyboard.modifier.rightCommand" = "右 Command（⌘）";
+"mtool.keyboard.modifier.leftOption" = "左 Option（⌥）";
+"mtool.keyboard.modifier.rightOption" = "右 Option（⌥）";
 
 "mtool.clipboard.header" = "剪贴板历史";
 "mtool.clipboard.enable.title" = "记录剪贴板历史";
@@ -642,6 +649,7 @@
 "clipboard.resume" = "继续记录";
 "clipboard.paused" = "已暂停记录";
 "clipboard.localOnly" = "仅保存在本机";
+"clipboard.copyThenPaste" = "点击条目复制，返回原应用后按 ⌘V";
 "clipboard.count.format" = "%d 条";
 "clipboard.pin" = "固定";
 "clipboard.unpin" = "取消固定";

@@ -14,6 +14,7 @@ final class SearchPanelController {
     private let screenshot: ScreenshotCopyController
     private var panel: MtoolFloatingPanel?
     private var escapeMonitor: Any?
+    private var resignObserver: NSObjectProtocol?
     private var streamTask: Task<Void, Never>?
     private var lastAnchor: CGPoint?
 
@@ -113,6 +114,12 @@ final class SearchPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.animationBehavior = .utilityWindow
         self.panel = panel
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main
+        ) { [weak self] _ in
+            guard let self, self.isVisible else { return }
+            self.onCloseRequested?()
+        }
         return panel
     }
 
@@ -171,5 +178,6 @@ final class SearchPanelController {
 
     deinit {
         removeEscMonitor()
+        if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
     }
 }

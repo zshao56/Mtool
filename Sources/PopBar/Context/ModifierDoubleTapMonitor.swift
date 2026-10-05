@@ -1,8 +1,12 @@
 import AppKit
 
 /// Watches the global `flagsChanged` (and `keyDown`) stream and reports a
-/// completed double-tap Command. The decision itself lives in the pure
-/// `ModifierDoubleTapDetector`; this class only translates real events into it.
+/// completed double-tap of the configured physical modifier.
+///
+/// The decision itself lives in the pure `PhysicalModifierDoubleTapDetector` /
+/// `ModifierDoubleTapDetector`; this class only translates real events into them.
+/// The exact side matters here and is read from the event's key code — see the
+/// note on `PhysicalModifierDoubleTapDetector` about Carbon's left/right limit.
 ///
 /// Important limitation, stated plainly: a global `flagsChanged` monitor only
 /// receives events when the app has Accessibility (or Input Monitoring)
@@ -18,17 +22,28 @@ final class ModifierDoubleTapMonitor {
     /// (monitor installed / removed). The settings UI shows it.
     var onAvailabilityChanged: ((Bool) -> Void)?
 
-    private var detector: ModifierDoubleTapDetector
+    private var detector: PhysicalModifierDoubleTapDetector
     private var globalFlags: Any?
     private var globalKeys: Any?
     private var observers: [NSObjectProtocol] = []
     private(set) var isRunning = false
 
-    init(threshold: TimeInterval = ModifierDoubleTapDetector.defaultThreshold) {
-        self.detector = ModifierDoubleTapDetector(threshold: threshold)
+    /// The physical modifier being watched. `.anyCommand` is the legacy default.
+    var key: ModifierTapKey { detector.key }
+
+    init(key: ModifierTapKey = .anyCommand,
+         threshold: TimeInterval = ModifierDoubleTapDetector.defaultThreshold) {
+        detector = PhysicalModifierDoubleTapDetector(key: key, threshold: threshold)
     }
 
     var isAvailable: Bool { isRunning }
+
+    /// Change which side is watched. Resets any gesture in flight, so switching
+    /// mid-gesture cannot complete against the new key.
+    func setKey(_ key: ModifierTapKey) {
+        guard key != detector.key else { return }
+        detector = PhysicalModifierDoubleTapDetector(key: key, threshold: detector.threshold)
+    }
 
     func setThreshold(_ threshold: TimeInterval) {
         detector.threshold = threshold
@@ -37,7 +52,7 @@ final class ModifierDoubleTapMonitor {
     func start() {
         guard !isRunning else { return }
         guard AccessibilityAuthorizer.isTrusted else {
-            Self.log.warn("no Accessibility permission — double-Command cannot be captured")
+            Self.log.warn("no Accessibility permission — double-tap trigger cannot be captured")
             onAvailabilityChanged?(false)
             return
         }
@@ -47,7 +62,7 @@ final class ModifierDoubleTapMonitor {
         }
         // A non-modifier key means the user is typing, not double-tapping.
         globalKeys = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in
-            self?.detector.handle(.otherKeyDown, at: ProcessInfo.processInfo.systemUptime)
+            self?.detector.reset()
         }
 
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(
@@ -57,7 +72,7 @@ final class ModifierDoubleTapMonitor {
         })
 
         isRunning = globalFlags != nil
-        Self.log.info("double-Command monitor \(self.isRunning ? "installed" : "unavailable (no event stream)")")
+        Self.log.info("double-tap monitor \(self.isRunning ? "installed" : "unavailable (no event stream)") for \(self.key.rawValue)")
         onAvailabilityChanged?(isRunning)
     }
 
@@ -82,16 +97,21 @@ final class ModifierDoubleTapMonitor {
     private func handleFlagsChanged(_ event: NSEvent) {
         // Secure input (a password prompt) must never be observed.
         if FocusedInputInspector.isSecureInputActive() {
-            detector.handle(.secureInputActive, at: ProcessInfo.processInfo.systemUptime)
+            detector.reset()
             return
         }
         let flags = event.modifierFlags
-        let commandDown = flags.contains(.command)
-        let otherModifiers = flags.contains(.shift) || flags.contains(.option) || flags.contains(.control)
         let now = ProcessInfo.processInfo.systemUptime
-
-        if detector.handleFlags(commandDown: commandDown, otherModifiers: otherModifiers, at: now) {
-            Self.log.info("double-Command detected")
+        let completed = detector.handle(
+            keyCode: event.keyCode,
+            commandDown: flags.contains(.command),
+            optionDown: flags.contains(.option),
+            shiftDown: flags.contains(.shift),
+            controlDown: flags.contains(.control),
+            at: now
+        )
+        if completed {
+            Self.log.info("double-tap \(self.key.rawValue) detected")
             onTriggered?()
         }
     }

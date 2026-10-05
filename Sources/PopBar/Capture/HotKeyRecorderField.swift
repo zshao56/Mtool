@@ -2,8 +2,12 @@ import SwiftUI
 import AppKit
 import Carbon.HIToolbox   // cmdKey/shiftKey/optionKey/controlKey masks
 
-/// A click-to-record shortcut field. The controller suspends its Carbon hotkeys
-/// during recording so the local monitor can see an existing shortcut again.
+/// A click-to-record shortcut field for a Carbon combo (⌥Space, ⌘⇧S …).
+///
+/// This field records ONE thing: a key plus at least one real modifier (⌘/⌥/⌃).
+/// The modifier-only double-tap gesture has its own recorder below, precisely so
+/// the two cannot be confused — a plain combo recording must never be mistaken
+/// for a double-tap and vice versa.
 struct HotKeyRecorderField: View {
     /// Nil shows a "click to record" prompt — a hotkey with no default (the popup one).
     let combo: KeyCombo?
@@ -12,29 +16,21 @@ struct HotKeyRecorderField: View {
     let onRecorded: (KeyCombo) -> Void
     let onBeginRecording: () -> UUID
     let onEndRecording: (UUID) -> Void
-    let onDoubleCommandRecorded: (() -> Void)?
-    let doubleCommandThreshold: TimeInterval
 
     @State private var isRecording = false
     @State private var timedOut = false
     @State private var keyMonitor: Any?
-    @State private var flagsMonitor: Any?
     @State private var recordingToken: UUID?
     @State private var recordingWindow: NSWindow?
     @State private var timeoutWork: DispatchWorkItem?
-    @State private var doubleDetector = LocalDoubleCommandDetector()
 
     init(combo: KeyCombo?,
          onBeginRecording: @escaping () -> UUID,
          onEndRecording: @escaping (UUID) -> Void,
-         onDoubleCommandRecorded: (() -> Void)? = nil,
-         doubleCommandThreshold: TimeInterval = ModifierDoubleTapDetector.defaultThreshold,
          onRecorded: @escaping (KeyCombo) -> Void) {
         self.combo = combo
         self.onBeginRecording = onBeginRecording
         self.onEndRecording = onEndRecording
-        self.onDoubleCommandRecorded = onDoubleCommandRecorded
-        self.doubleCommandThreshold = doubleCommandThreshold
         self.onRecorded = onRecorded
     }
 
@@ -82,15 +78,9 @@ struct HotKeyRecorderField: View {
         timedOut = false
         recordingWindow = NSApp.keyWindow
         recordingToken = onBeginRecording()
-        doubleDetector.reset(threshold: doubleCommandThreshold)
         isRecording = true
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             handle(event)
-        }
-        if onDoubleCommandRecorded != nil {
-            flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
-                handleFlagsChanged(event)
-            }
         }
         let id = recordingToken
         let work = DispatchWorkItem {
@@ -105,9 +95,7 @@ struct HotKeyRecorderField: View {
     /// Tears down the local monitor and leaves recording state. Safe to call repeatedly.
     private func stopRecording() {
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
-        if let flagsMonitor { NSEvent.removeMonitor(flagsMonitor) }
         keyMonitor = nil
-        flagsMonitor = nil
         timeoutWork?.cancel()
         timeoutWork = nil
         isRecording = false
@@ -137,8 +125,6 @@ struct HotKeyRecorderField: View {
             return nil
         }
 
-        doubleDetector.cancelForOtherKey()
-
         // Require a "real" modifier (⌘/⌥/⌃); ignore bare keys and shift-only so plain
         // typing isn't captured. Keep waiting (swallow) until one arrives.
         let flags = event.modifierFlags
@@ -149,21 +135,6 @@ struct HotKeyRecorderField: View {
 
         let recorded = KeyCombo(keyCode: UInt32(event.keyCode), carbonModifiers: mask)
         completeRecording { onRecorded(recorded) }
-        return nil
-    }
-
-    private func handleFlagsChanged(_ event: NSEvent) -> NSEvent? {
-        guard onDoubleCommandRecorded != nil else { return event }
-        if FocusedInputInspector.isSecureInputActive() {
-            doubleDetector.reset(threshold: doubleCommandThreshold)
-            return nil
-        }
-        let flags = event.modifierFlags
-        let commandDown = flags.contains(.command)
-        let otherModifiers = flags.contains(.shift) || flags.contains(.option) || flags.contains(.control)
-        if doubleDetector.handleFlags(commandDown: commandDown, otherModifiers: otherModifiers, at: ProcessInfo.processInfo.systemUptime) {
-            completeRecording { onDoubleCommandRecorded?() }
-        }
         return nil
     }
 
@@ -178,19 +149,161 @@ struct HotKeyRecorderField: View {
     }
 }
 
-/// Reference storage keeps the four modifier transitions together across SwiftUI updates.
-private final class LocalDoubleCommandDetector {
-    private var detector = ModifierDoubleTapDetector()
+/// A click-to-record field for a modifier-only double-tap gesture.
+///
+/// It cannot share `HotKeyRecorderField`'s Carbon path: `RegisterEventHotKey`
+/// masks cannot tell the left Command from the right one, so the side is read
+/// from the `flagsChanged` key code instead (see `PhysicalModifierDoubleTapDetector`).
+/// While recording, the controller suspends the real trigger, so performing the
+/// gesture here cannot also fire the shortcut in the background.
+struct ModifierDoubleTapRecorderField: View {
+    let key: ModifierTapKey
+    let threshold: TimeInterval
+    let onRecorded: (ModifierTapKey) -> Void
+    let onBeginRecording: () -> UUID
+    let onEndRecording: (UUID) -> Void
 
-    func reset(threshold: TimeInterval) {
-        detector = ModifierDoubleTapDetector(threshold: threshold)
+    @State private var isRecording = false
+    @State private var timedOut = false
+    @State private var flagsMonitor: Any?
+    @State private var keyMonitor: Any?
+    @State private var recordingToken: UUID?
+    @State private var recordingWindow: NSWindow?
+    @State private var timeoutWork: DispatchWorkItem?
+    /// Reference storage keeps the detector across SwiftUI updates.
+    @State private var recorder = LocalModifierTapRecorder()
+
+    init(key: ModifierTapKey,
+         threshold: TimeInterval,
+         onBeginRecording: @escaping () -> UUID,
+         onEndRecording: @escaping (UUID) -> Void,
+         onRecorded: @escaping (ModifierTapKey) -> Void) {
+        self.key = key
+        self.threshold = threshold
+        self.onBeginRecording = onBeginRecording
+        self.onEndRecording = onEndRecording
+        self.onRecorded = onRecorded
     }
 
-    func cancelForOtherKey() {
-        detector.handle(.otherKeyDown, at: ProcessInfo.processInfo.systemUptime)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                if isRecording { stopRecording() } else { startRecording() }
+            } label: {
+                Text(isRecording ? L("mtool.keyboard.doubleCommand.key.recording") : L(key.localizationKey))
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(isRecording ? Color.accentColor : Color.primary)
+                    .frame(minWidth: 100)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.primary.opacity(0.06)))
+                    .overlay(
+                        Capsule().strokeBorder(isRecording ? Color.accentColor
+                                                            : Color.primary.opacity(0.15))
+                    )
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            if timedOut {
+                Text(L("mtool.keyboard.record.timeout"))
+                    .font(.caption2).foregroundStyle(.orange)
+            }
+        }
+        .onDisappear { stopRecording() }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
+            guard isRecording else { return }
+            if let window = recordingWindow {
+                if note.object as? NSWindow === window { stopRecording() }
+            } else {
+                stopRecording()
+            }
+        }
     }
 
-    func handleFlags(commandDown: Bool, otherModifiers: Bool, at time: TimeInterval) -> Bool {
-        detector.handleFlags(commandDown: commandDown, otherModifiers: otherModifiers, at: time)
+    private static let recordingTimeout: TimeInterval = 15
+
+    private func startRecording() {
+        guard !isRecording, flagsMonitor == nil else { return }
+        timedOut = false
+        recordingWindow = NSApp.keyWindow
+        recordingToken = onBeginRecording()
+        recorder.reset(threshold: threshold)
+        isRecording = true
+        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+            handleFlagsChanged(event)
+        }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handleKeyDown(event)
+        }
+        let id = recordingToken
+        let work = DispatchWorkItem {
+            guard isRecording, recordingToken == id else { return }
+            timedOut = true
+            stopRecording()
+        }
+        timeoutWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.recordingTimeout, execute: work)
+    }
+
+    private func stopRecording() {
+        if let flagsMonitor { NSEvent.removeMonitor(flagsMonitor) }
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        flagsMonitor = nil
+        keyMonitor = nil
+        timeoutWork?.cancel()
+        timeoutWork = nil
+        isRecording = false
+        recordingWindow = nil
+        if let id = recordingToken {
+            recordingToken = nil
+            onEndRecording(id)
+        }
+    }
+
+    private func completeRecording(_ action: () -> Void) {
+        let id = recordingToken
+        recordingToken = nil
+        stopRecording()
+        action()
+        if let id { onEndRecording(id) }
+    }
+
+    /// A non-modifier key means the user is typing, not tapping a modifier.
+    private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+        if event.keyCode == 53 { stopRecording() }
+        recorder.reset(threshold: threshold)
+        return nil
+    }
+
+    private func handleFlagsChanged(_ event: NSEvent) -> NSEvent? {
+        if FocusedInputInspector.isSecureInputActive() {
+            recorder.reset(threshold: threshold)
+            return nil
+        }
+        let flags = event.modifierFlags
+        if let detected = recorder.handle(
+            keyCode: event.keyCode,
+            commandDown: flags.contains(.command),
+            optionDown: flags.contains(.option),
+            shiftDown: flags.contains(.shift),
+            controlDown: flags.contains(.control),
+            at: ProcessInfo.processInfo.systemUptime
+        ) {
+            completeRecording { onRecorded(detected) }
+        }
+        return nil
+    }
+}
+
+/// Class wrapper so the recorder's value-type state survives SwiftUI view rebuilds.
+private final class LocalModifierTapRecorder {
+    private var recorder = ModifierDoubleTapRecorder()
+
+    func reset(threshold: TimeInterval) { recorder.reset(threshold: threshold) }
+
+    func handle(keyCode: UInt16, commandDown: Bool, optionDown: Bool,
+                shiftDown: Bool, controlDown: Bool, at time: TimeInterval) -> ModifierTapKey? {
+        recorder.handle(keyCode: keyCode, commandDown: commandDown, optionDown: optionDown,
+                        shiftDown: shiftDown, controlDown: controlDown, at: time)
     }
 }

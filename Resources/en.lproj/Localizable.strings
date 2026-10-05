@@ -600,21 +600,28 @@
 
 "mtool.keyboard.main.header" = "Main shortcut";
 "mtool.keyboard.main.title" = "Three-scene shortcut";
-"mtool.keyboard.main.subtitle" = "Press once: with selected text the action bar opens; in an editable box the clipboard panel opens; otherwise the quick search box opens. Press again to close.";
+"mtool.keyboard.main.subtitle" = "Press once to open the action bar for selected text, or the question box with a clipboard button elsewhere. Press again to close.";
 "mtool.keyboard.main.label" = "Shortcut";
 "mtool.keyboard.main.occupied" = "This shortcut could not be registered — another app already uses it. Record a different one.";
-"mtool.keyboard.main.hint" = "Recommended: ⌥Space. You can also click the recorder and double-tap Command to enable that trigger.";
+"mtool.keyboard.main.hint" = "Recommended: ⌥Space. The double-tap trigger has its own recorder below.";
 "mtool.keyboard.record.timeout" = "No key received. Try again; macOS or another app may own that shortcut.";
-"mtool.keyboard.doubleCommand.recorded" = "Double-tap Command was recognized here. The status below shows whether it can trigger in other apps.";
 "mtool.keyboard.autoPopup.header" = "Selection";
 "mtool.keyboard.autoPopup.title" = "Open the action bar automatically after selecting text";
 "mtool.keyboard.autoPopup.subtitle" = "Off by default so reading is not interrupted. The main shortcut always works.";
-"mtool.keyboard.doubleCommand.header" = "Double-tap Command";
-"mtool.keyboard.doubleCommand.title" = "Trigger by double-tapping Command";
-"mtool.keyboard.doubleCommand.subtitle" = "Tap Command twice quickly while in another app. Needs Accessibility or Input Monitoring permission.";
+"mtool.keyboard.doubleCommand.header" = "Double-tap modifier";
+"mtool.keyboard.doubleCommand.title" = "Trigger by double-tapping a modifier";
+"mtool.keyboard.doubleCommand.subtitle" = "Tap the same modifier twice quickly while in another app. Left and right are recorded separately. Needs Accessibility or Input Monitoring permission.";
+"mtool.keyboard.doubleCommand.key" = "Trigger key";
+"mtool.keyboard.doubleCommand.key.hint" = "Click the recorder and tap the same modifier twice; the side is detected. Or pick one explicitly — “Any Command” keeps the original either-Command behaviour.";
+"mtool.keyboard.doubleCommand.key.recording" = "Tap a modifier twice…";
 "mtool.keyboard.doubleCommand.threshold" = "Maximum interval";
-"mtool.keyboard.doubleCommand.unavailable" = "macOS is not delivering modifier events to this app, so double-tap Command cannot be captured here.";
-"mtool.keyboard.footer" = "The main shortcut and double-tap Command both open the same three scenes.";
+"mtool.keyboard.doubleCommand.unavailable" = "macOS is not delivering modifier events to this app, so the double-tap trigger cannot be captured here.";
+"mtool.keyboard.footer" = "The main shortcut and the double-tap trigger both open the same three scenes.";
+"mtool.keyboard.modifier.anyCommand" = "Any Command (⌘)";
+"mtool.keyboard.modifier.leftCommand" = "Left Command (⌘)";
+"mtool.keyboard.modifier.rightCommand" = "Right Command (⌘)";
+"mtool.keyboard.modifier.leftOption" = "Left Option (⌥)";
+"mtool.keyboard.modifier.rightOption" = "Right Option (⌥)";
 
 "mtool.clipboard.header" = "Clipboard history";
 "mtool.clipboard.enable.title" = "Record clipboard history";
@@ -643,6 +650,7 @@
 "clipboard.resume" = "Resume recording";
 "clipboard.paused" = "Recording paused";
 "clipboard.localOnly" = "Stored only on this Mac";
+"clipboard.copyThenPaste" = "Click to copy, then press ⌘V in the original app";
 "clipboard.count.format" = "%d items";
 "clipboard.pin" = "Pin";
 "clipboard.unpin" = "Unpin";

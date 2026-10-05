@@ -19,8 +19,19 @@ enum AXSelectionProbe {
     static func focusedElement() -> AXUIElement? {
         let systemWide = AXUIElementCreateSystemWide()
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
+        if AXUIElementCopyAttributeValue(
                 systemWide, kAXFocusedUIElementAttribute as CFString, &value) == .success,
+           let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
+            return (value as! AXUIElement)
+        }
+        // Some apps expose focus on their application AX root while the
+        // system-wide query returns no element. This is still a real AX element;
+        // routing and paste validation continue to check editability and PID.
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return nil }
+        value = nil
+        let application = AXUIElementCreateApplication(pid)
+        guard AXUIElementCopyAttributeValue(
+                application, kAXFocusedUIElementAttribute as CFString, &value) == .success,
               let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
         return (value as! AXUIElement)
     }

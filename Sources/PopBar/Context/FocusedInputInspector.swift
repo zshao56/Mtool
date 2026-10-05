@@ -118,11 +118,7 @@ enum FocusedInputInspector {
     /// The system-wide focused element, or nil. Kept here so the paste validation
     /// is self-contained and does not depend on the selection-reading layer.
     static func focusedElement() -> AXUIElement? {
-        let systemWide = AXUIElementCreateSystemWide()
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &value) == .success,
-              let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
-        return (value as! AXUIElement)
+        AXSelectionProbe.focusedElement()
     }
 
     // MARK: - AX helpers

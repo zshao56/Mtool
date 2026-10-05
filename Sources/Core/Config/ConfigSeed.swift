@@ -48,6 +48,7 @@ enum ConfigSeed {
         doc.set(path: "main.autoPopupOnSelect", to: .bool(false))
         doc.set(path: "main.autoPopupDelayMs", to: .number(300))
         doc.set(path: "main.doubleCommandEnabled", to: .bool(false))
+        doc.set(path: "main.doubleCommandKey", to: .string(ModifierTapKey.anyCommand.rawValue))
         doc.set(path: "main.doubleCommandThresholdMs", to: .number(350))
         doc.set(path: "search.askPrompt", to: .string(MtoolPreferences.defaultAskPrompt))
 

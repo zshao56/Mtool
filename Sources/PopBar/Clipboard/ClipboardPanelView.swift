@@ -8,6 +8,7 @@ final class ClipboardPanelModel: ObservableObject {
     @Published var items: [ClipboardItem] = []
     @Published var snippets: [Snippet] = []
     @Published var paused: Bool = ClipboardPreferences.paused
+    @Published var pasteAvailable = false
     /// The highlighted row, as a stable key: `"s<id>"` for a snippet, `"h<id>"`
     /// for a history entry. Snippets come first, matching the visual order, so
     /// ↑/↓ can move through both groups.
@@ -213,6 +214,7 @@ struct ClipboardPanelView: View {
             footer
         }
         .frame(width: 440, height: 500)
+        .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { model.reload(); searchFocused = true }
         .onChange(of: model.query) { _ in model.reload() }
     }
@@ -244,7 +246,8 @@ struct ClipboardPanelView: View {
 
     private var footer: some View {
         HStack {
-            Text(model.paused ? L("clipboard.paused") : L("clipboard.localOnly"))
+            Text(model.paused ? L("clipboard.paused") :
+                 (model.pasteAvailable ? L("clipboard.localOnly") : L("clipboard.copyThenPaste")))
                 .font(.system(size: 10)).foregroundStyle(.secondary)
             Spacer()
             Text(String(format: L("clipboard.count.format"), model.items.count))

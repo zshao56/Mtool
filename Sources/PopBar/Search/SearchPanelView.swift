@@ -216,7 +216,8 @@ struct SearchPanelView: View {
         }
         .frame(width: SearchPanelLayout.width,
                height: model.showsOutput ? SearchPanelLayout.expandedHeight : SearchPanelLayout.compactHeight)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(Color(nsColor: .windowBackgroundColor),
+                    in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }

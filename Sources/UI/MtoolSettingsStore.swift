@@ -16,6 +16,7 @@ final class MtoolSettingsStore: ObservableObject {
     @Published private(set) var doubleCommandEnabled: Bool
     @Published private(set) var doubleCommandAvailable: Bool
     @Published private(set) var doubleCommandThreshold: Double
+    @Published private(set) var doubleCommandKey: ModifierTapKey
 
     // Clipboard
     @Published private(set) var clipboardEnabled: Bool
@@ -40,6 +41,7 @@ final class MtoolSettingsStore: ObservableObject {
         self.doubleCommandEnabled = MtoolPreferences.doubleCommandEnabled
         self.doubleCommandAvailable = controller.doubleCommandAvailable
         self.doubleCommandThreshold = MtoolPreferences.doubleCommandThreshold * 1000
+        self.doubleCommandKey = MtoolPreferences.doubleCommandKey
         self.clipboardEnabled = ClipboardPreferences.enabled
         self.clipboardPaused = ClipboardPreferences.paused
         self.maxItems = Double(ClipboardPreferences.policy.maxItems)
@@ -106,6 +108,14 @@ final class MtoolSettingsStore: ObservableObject {
     func setDoubleCommandThreshold(_ ms: Double) {
         doubleCommandThreshold = ms
         controller.setDoubleCommandThreshold(ms / 1000)
+    }
+
+    /// Record or pick which physical modifier double-taps. Persisted immediately
+    /// and pushed to the live monitor without a restart.
+    func setDoubleCommandKey(_ key: ModifierTapKey) {
+        guard key != doubleCommandKey else { return }
+        doubleCommandKey = key
+        controller.setDoubleCommandKey(key)
     }
 
     func openAccessibilitySettings() {
