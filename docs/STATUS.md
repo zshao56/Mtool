@@ -5,13 +5,13 @@ to be updated as work lands.
 
 ## Verified
 
-- **Pure logic unit tests pass** (29 tests): three-scene routing
-  (`ContextRoutingTests`), the double-tap Command detector
-  (`ModifierDoubleTapTests`), clipboard policy (`ClipboardPolicyTests`) and the
-  clipboard SQLite store (`ClipboardStoreTests` — round trip, de-duplication,
-  pinning, retention, capacity, search and snippets). These were compiled and
-  run with a Swift 5.10 toolchain; the store tests ran against the system
-  SQLite.
+- **Pure logic unit tests pass** (32 tests): three-scene routing
+  (`ContextRoutingTests`, including the stale-PID check), the double-tap Command
+  detector (`ModifierDoubleTapTests`), clipboard policy (`ClipboardPolicyTests`)
+  and the clipboard SQLite store (`ClipboardStoreTests` — round trip,
+  de-duplication, pinning, retention, capacity, search, snippets and snippet
+  reordering). These were compiled and run with a Swift 5.10 toolchain; the
+  store tests ran against the system SQLite.
 - **Every Swift file parses** (`swiftc -parse` over all sources).
 - **`project.yml` and the GitHub Actions workflow are valid YAML**, and
   `ConfigSchema.json` is valid JSON.
@@ -38,12 +38,15 @@ to be updated as work lands.
 
 ## Known gaps / not implemented
 
-- Editing and reordering saved snippets has no UI yet (snippets can be created
-  from the panel, searched, copied and deleted from the store, but there is no
-  title/content/order editor).
 - The clipboard panel's history is not virtualized beyond `LazyVStack`; very
   large histories are capped by the policy anyway.
-- The main shortcut does not re-check the frontmost PID after an async read (it
-  compares the generation token only).
 - No App Store / sandboxed build (the features require AX, global event taps and
   screen capture, which the sandbox forbids).
+
+## Recently completed after the first status pass
+
+- Saved snippets (常用词) can now be created, edited (title + content), reordered
+  with up/down controls and deleted from the panel; all of it is persisted and
+  the panel is usable from the keyboard. The async selection read now compares
+  the frontmost process id on return and discards a result whose app is no longer
+  frontmost.

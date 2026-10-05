@@ -659,3 +659,16 @@
 "about.derived.notice" = "Mtool 是自由软件，派生自 QDuo（© XueshiQiao），以 GNU 通用公共许可证 v3.0 发布。源码见上方仓库。";
 "about.privacy.notice" = "Mtool 不收集任何遥测数据。剪贴板历史与设置都保存在本机。";
 "clipboard.copied" = "已复制——未找到可写入的目标";
+
+/* 常用词编辑器 */
+"clipboard.copy" = "复制";
+"clipboard.cancel" = "取消";
+"clipboard.snippet.new" = "新建常用词";
+"clipboard.snippet.edit" = "编辑常用词";
+"clipboard.snippet.save" = "保存";
+"clipboard.snippet.title" = "标题";
+"clipboard.snippet.untitled" = "未命名";
+"clipboard.snippet.add" = "新增常用词";
+"clipboard.snippet.moveUp" = "上移";
+"clipboard.snippet.moveDown" = "下移";
+"clipboard.snippets.empty" = "还没有常用词。";

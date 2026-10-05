@@ -106,4 +106,19 @@ enum ContextRouting {
         if let focused = snapshot.focused, focused.looksEditable { return .clipboard }
         return .search
     }
+
+    /// Whether an async selection read is still for the app that was frontmost
+    /// when the shortcut was pressed. The read is asynchronous, so the user may
+    /// have switched apps while it was in flight; a result for the old app must
+    /// not open a surface over the new one.
+    ///
+    /// Both unknown cases are treated as "still current": if the trigger could
+    /// not capture a pid, or the frontmost app cannot be read right now, there is
+    /// nothing reliable to compare and dropping the result would be worse than
+    /// showing it.
+    static func isCurrent(frontPIDAtTrigger: Int32?, frontPIDNow: Int32?) -> Bool {
+        guard let trigger = frontPIDAtTrigger else { return true }
+        guard let now = frontPIDNow else { return true }
+        return trigger == now
+    }
 }

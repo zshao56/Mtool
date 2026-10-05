@@ -31,6 +31,8 @@ versions used.
 | 19 | Double-tap Command | Enable it, double-tap Command in another app | The same three scenes open; Settings reports availability | not run |
 | 20 | Auto popup off by default | Fresh install, select text without pressing anything | Nothing opens | not run |
 | 21 | Gatekeeper | Open the downloaded DMG on a clean Mac | Right-click → Open works; the app runs | not run |
+| 22 | Snippet editing | Open the clipboard panel, add a saved item, edit title/content, reorder, relaunch | Everything persists in the chosen order | not run |
+| 23 | Stale read discarded | Press the shortcut, then switch apps before the surface appears | Nothing opens over the newly-frontmost app | not run |
 
 ## Notes on limits
 

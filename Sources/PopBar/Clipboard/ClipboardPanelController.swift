@@ -85,6 +85,15 @@ final class ClipboardPanelController {
         guard escapeMonitor == nil else { return }
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
+            // While the snippet editor is open, the text fields own the keyboard;
+            // only Esc is intercepted (to cancel editing rather than close).
+            if self.model.isEditing {
+                if event.keyCode == 53 {
+                    self.model.cancelEdit()
+                    return nil
+                }
+                return event
+            }
             switch event.keyCode {
             case 53:   // Esc
                 self.onCloseRequested?()

@@ -90,6 +90,29 @@ final class ClipboardStoreTests: XCTestCase {
         XCTAssertEqual(store.snippets().map(\.title), ["Sign"])
     }
 
+    func testSnippetEditKeepsOrder() {
+        let store = ClipboardStore(url: url)
+        let a = store.upsertSnippet(Snippet(title: "A", text: "a"))!
+        _ = store.upsertSnippet(Snippet(title: "B", text: "b"))!
+        let existing = store.snippets().first { $0.id == a }!
+        store.upsertSnippet(Snippet(id: a, title: "A2", text: "a2", sortOrder: existing.sortOrder))
+        let list = store.snippets()
+        XCTAssertEqual(list.map(\.title), ["A2", "B"])
+        XCTAssertEqual(list.first?.text, "a2")
+    }
+
+    func testSnippetReorderingPersists() {
+        let store = ClipboardStore(url: url)
+        _ = store.upsertSnippet(Snippet(title: "A", text: "a"))!
+        _ = store.upsertSnippet(Snippet(title: "B", text: "b"))!
+        _ = store.upsertSnippet(Snippet(title: "C", text: "c"))!
+        XCTAssertEqual(store.snippets().map(\.title), ["A", "B", "C"])
+        var list = store.snippets()
+        list.swapAt(0, 2)
+        store.reorderSnippets(list)
+        XCTAssertEqual(store.snippets().map(\.title), ["C", "B", "A"])
+    }
+
     func testCount() {
         let store = ClipboardStore(url: url)
         store.insert(textItem("a"))

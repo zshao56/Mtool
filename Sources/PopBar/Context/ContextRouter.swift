@@ -59,12 +59,6 @@ final class ContextRouter {
             self?.store.delete(id: item.id)
             self?.clipboard.model.reload()
         }
-        clipboard.model.onSaveSnippet = { [weak self] item in
-            guard let self else { return }
-            let title = String(item.singleLine(limit: 40))
-            self.store.upsertSnippet(Snippet(title: title, text: item.text ?? item.singleLine()))
-            self.clipboard.model.reload()
-        }
         clipboard.onCloseRequested = { [weak self] in self?.closeAll() }
         search.onCloseRequested = { [weak self] in self?.closeAll() }
         watcher.onChange = { [weak self] in
@@ -140,6 +134,14 @@ final class ContextRouter {
         // Ignore a read that belongs to an older generation.
         guard snapshot.generation == generation else {
             log.debug("discarding stale route (gen \(snapshot.generation) ≠ \(generation))")
+            return
+        }
+        // The read was asynchronous: if the user switched apps while it was in
+        // flight, the result describes a context that is no longer current and
+        // must not open a panel over the new frontmost app.
+        let nowPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        guard ContextRouting.isCurrent(frontPIDAtTrigger: snapshot.frontAppPID, frontPIDNow: nowPID) else {
+            log.info("discarding stale route — frontmost pid changed (\(nowPID.map(String.init) ?? "nil") ≠ \(snapshot.frontAppPID.map(String.init) ?? "nil"))")
             return
         }
         var snap = snapshot

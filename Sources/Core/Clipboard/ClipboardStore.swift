@@ -328,6 +328,25 @@ final class ClipboardStore {
         }
     }
 
+    /// Persist a new snippet order. `ordered` is the full list as the user wants
+    /// it; each row's `sort_order` is rewritten to its index. Unknown ids are
+    /// ignored, so a stale list cannot delete anything.
+    func reorderSnippets(_ ordered: [Snippet]) {
+        queue.sync {
+            guard open() else { return }
+            _ = writing { () -> Bool in
+                for (index, snippet) in ordered.enumerated() {
+                    guard let stmt = self.prepare("UPDATE snippets SET sort_order = ? WHERE id = ?") else { continue }
+                    defer { sqlite3_finalize(stmt) }
+                    self.bind([.int(Int64(index)), .int(snippet.id)], to: stmt)
+                    if sqlite3_step(stmt) != SQLITE_DONE { return false }
+                }
+                return true
+            }
+            self.notifyChanged()
+        }
+    }
+
     private func nextSnippetOrder() -> Int {
         guard let stmt = prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM snippets") else { return 1 }
         defer { sqlite3_finalize(stmt) }

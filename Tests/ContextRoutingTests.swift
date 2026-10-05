@@ -71,4 +71,15 @@ final class ContextRoutingTests: XCTestCase {
                                        focused: editable(editable: false, settable: false, fallback: true))
         XCTAssertEqual(ContextRouting.scene(for: snapshot), .clipboard)
     }
+
+    func testStaleAppResultIsDiscarded() {
+        // Same frontmost app → the read is still current.
+        XCTAssertTrue(ContextRouting.isCurrent(frontPIDAtTrigger: 42, frontPIDNow: 42))
+        // A different app came forward while the read was in flight → discard.
+        XCTAssertFalse(ContextRouting.isCurrent(frontPIDAtTrigger: 42, frontPIDNow: 43))
+        // Could not capture a pid at trigger time → nothing to compare; keep it.
+        XCTAssertTrue(ContextRouting.isCurrent(frontPIDAtTrigger: nil, frontPIDNow: 43))
+        // Could not read the frontmost app right now → do not drop a valid result.
+        XCTAssertTrue(ContextRouting.isCurrent(frontPIDAtTrigger: 42, frontPIDNow: nil))
+    }
 }

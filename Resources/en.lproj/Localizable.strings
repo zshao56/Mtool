@@ -660,3 +660,16 @@
 "about.derived.notice" = "Mtool is free software, derived from QDuo (© XueshiQiao) and released under the GNU General Public License v3.0. The source is available at the repository above.";
 "about.privacy.notice" = "Mtool collects no telemetry. Clipboard history and settings stay on this Mac.";
 "clipboard.copied" = "Copied — no editable target was available";
+
+/* Snippet (常用词) editor */
+"clipboard.copy" = "Copy";
+"clipboard.cancel" = "Cancel";
+"clipboard.snippet.new" = "New saved item";
+"clipboard.snippet.edit" = "Edit saved item";
+"clipboard.snippet.save" = "Save";
+"clipboard.snippet.title" = "Title";
+"clipboard.snippet.untitled" = "Untitled";
+"clipboard.snippet.add" = "Add a saved item";
+"clipboard.snippet.moveUp" = "Move up";
+"clipboard.snippet.moveDown" = "Move down";
+"clipboard.snippets.empty" = "No saved items yet.";
