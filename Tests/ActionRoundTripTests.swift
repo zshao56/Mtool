@@ -174,22 +174,48 @@ final class ActionRoundTripTests: XCTestCase {
         }
     }
 
-    func testTheDefaultsFoldTheLessUsedActionsIntoOneToolsGroup() throws {
+    func testResearchDefaultsIncludeFiveAIActionsAndCopy() throws {
         let seed = DefaultActions.seed()
-        XCTAssertEqual(seed.map(\.kind), [.ai, .ai, .ai, .group, .openURL, .speak, .copy])
-        let group = try XCTUnwrap(seed.first { $0.kind == .group })
-        XCTAssertEqual(group.children.map(\.kind), [.webPreview, .settings, .openURL])
-        // The third is ChatGPT, asked with the selection.
-        XCTAssertEqual(group.children.last?.url, "https://chatgpt.com/?q={text}")
-        // And the group survives the trip through the config file.
+        XCTAssertEqual(seed.count, 6)
+        XCTAssertEqual(seed.map(\.kind), [.ai, .ai, .ai, .ai, .ai, .copy])
+        XCTAssertEqual(seed.filter { $0.kind == .ai }.count, 5)
+        XCTAssertEqual(seed.last?.kind, .copy)
+
+        // The 5 research AI actions: translate, explain, literature, polish, abstract
+        XCTAssertEqual(seed.map(\.title), [
+            "popbar.action.translate",
+            "popbar.action.explain",
+            "popbar.action.literature",
+            "popbar.action.polish",
+            "popbar.action.abstract",
+            "popbar.action.copy",
+        ])
+
+        // And the actions survive the round-trip through JSON serialization.
         let data = try JSONEncoder().encode(seed)
         let back = try JSONDecoder().decode([PopBarActionConfig].self, from: data)
-        XCTAssertEqual(back.first { $0.kind == .group }?.children.count, 3)
+        XCTAssertEqual(back.count, 6)
+        XCTAssertEqual(back.map(\.kind), [.ai, .ai, .ai, .ai, .ai, .copy])
+        XCTAssertEqual(back.map(\.title), seed.map(\.title))
+        XCTAssertEqual(back[3].outputMode, .compare)
     }
 
     func testTheDefaultPolishComparesBeforeReplacing() {
         let seed = DefaultActions.seed()
-        XCTAssertEqual(seed.map(\.outputMode), [.panel, .compare, .panel, .panel, .panel, .panel, .panel])
+        XCTAssertEqual(seed.count, 6)
+        // Polish is the 4th action (index 3) and compares before replacing; others output to panel.
+        XCTAssertEqual(seed.map(\.outputMode), [.panel, .panel, .panel, .compare, .panel, .panel])
+        XCTAssertEqual(seed[3].outputMode, .compare)
+        XCTAssertEqual(seed[3].title, "popbar.action.polish")
+    }
+
+    func testToolsGroupSurvivesSerialization() throws {
+        let group = DefaultActions.toolsGroup()
+        XCTAssertEqual(group.children.map(\.kind), [.webPreview, .settings, .openURL])
+        XCTAssertEqual(group.children.last?.url, "https://chatgpt.com/?q={text}")
+        let data = try JSONEncoder().encode([group])
+        let back = try JSONDecoder().decode([PopBarActionConfig].self, from: data)
+        XCTAssertEqual(back.first?.children.count, 3)
     }
 
     func testAnEmptyListRoundTripsAsEmpty() throws {
