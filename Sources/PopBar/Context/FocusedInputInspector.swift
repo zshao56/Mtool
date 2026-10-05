@@ -17,26 +17,6 @@ enum FocusedInputInspector {
     /// Attribute names that are not in the public headers but are widely exposed.
     private static let editableAttribute = "AXEditable"
 
-    /// Roles that are text controls. `AXTextArea` alone is NOT enough to call
-    /// something editable — a read-only text area is still `AXTextArea` — so the
-    /// settability check below is what decides.
-    private static let textRoles: Set<String> = [
-        "AXTextField", "AXTextArea", "AXComboBox", "AXSearchField",
-    ]
-
-    /// Roles a browser or Electron app might expose for a real text input even
-    /// without an explicit editable attribute. Kept as a *separate* fallback
-    /// flag: the plan requires real macOS acceptance evidence before automatic
-    /// pasting is enabled for it, so it defaults to off and the router treats it
-    /// as "not editable" until verified on a real desktop.
-    private static let browserFallbackRoles: Set<String> = [
-        "AXTextField", "AXTextArea", "AXSearchField",
-    ]
-
-    /// Whether the browser/Electron fallback may be trusted. Off by default; turn
-    /// on only after `docs/ACCEPTANCE.md` records a real-device pass.
-    static let browserFallbackEnabled = false
-
     /// Inspect the focused element (or nil). Cheap AX calls; main thread.
     static func inspect(_ element: AXUIElement?) -> FocusedInputInfo {
         guard let element else { return .unknown }
@@ -49,13 +29,12 @@ enum FocusedInputInspector {
         let valueSettable = isSettable(element, kAXValueAttribute)
         let secure = isSecure(role: role, subrole: subrole)
 
-        var fallback = false
-        if browserFallbackEnabled, !secure, enabled,
-           let role, browserFallbackRoles.contains(role) {
-            // A real text control in a browser/Electron app that hides
-            // `AXEditable` but does expose a settable value.
-            fallback = valueSettable || selectedTextSettable
-        }
+        // Informational: a text role that did NOT expose the non-standard
+        // `AXEditable` attribute — the browser/Electron case the plan called out.
+        // The routing decision no longer depends on this flag (role + a writable
+        // attribute is enough), but it is kept for diagnostics.
+        let fallback = !secure && enabled && !editable
+            && (role.map(FocusedInputInfo.textInputRoles.contains) ?? false)
 
         let info = FocusedInputInfo(
             role: role, subrole: subrole, enabled: enabled, editable: editable,

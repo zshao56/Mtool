@@ -33,11 +33,16 @@ versions used.
 | 21 | Gatekeeper | Open the downloaded DMG on a clean Mac | Right-click → Open works; the app runs | not run |
 | 22 | Snippet editing | Open the clipboard panel, add a saved item, edit title/content, reorder, relaunch | Everything persists in the chosen order | not run |
 | 23 | Stale read discarded | Press the shortcut, then switch apps before the surface appears | Nothing opens over the newly-frontmost app | not run |
+| 24 | Snippet keyboard paste | Open the clipboard panel, press ↓ to a snippet, Enter | It pastes into the original input through the validated path | not run |
+| 25 | Clipboard preserved during paste | Trigger a paste, then immediately copy something else | The new copy is still on the clipboard (not overwritten by the restore) | not run |
+| 26 | Image entry paste | Copy an image, open the panel in an input, choose it; then try when focus cannot be re-validated | Pastes only into the confirmed target, otherwise copies only | not run |
+| 27 | Browser/WeChat editable detection | Focus a browser search box / WeChat input (no selection) | Clipboard panel opens (role + writable attribute, not `AXEditable`) | not run |
 
 ## Notes on limits
 
-- Automatic paste into browser/Electron controls is gated behind
-  `FocusedInputInspector.browserFallbackEnabled`, which is **off** until rows 1
-  and 2 pass on a real desktop.
-- Rows 1–3, 10 and 18 are the highest risk: they exercise cross-process
+- Editable detection no longer depends on the non-standard `AXEditable`
+  attribute: a known text role plus a writable `AXSelectedText`/`AXValue` is what
+  routes to scenario 2, and a role alone never pastes. Row 27 is the one to run
+  first on a real desktop.
+- Rows 1–3, 10, 18 and 27 are the highest risk: they exercise cross-process
   accessibility that no unit test can cover.

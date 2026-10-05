@@ -8,8 +8,10 @@ final class ClipboardPanelModel: ObservableObject {
     @Published var items: [ClipboardItem] = []
     @Published var snippets: [Snippet] = []
     @Published var paused: Bool = ClipboardPreferences.paused
-    /// The row highlighted for keyboard navigation.
-    @Published var selectedID: Int64?
+    /// The highlighted row, as a stable key: `"s<id>"` for a snippet, `"h<id>"`
+    /// for a history entry. Snippets come first, matching the visual order, so
+    /// ↑/↓ can move through both groups.
+    @Published var selectedKey: String?
 
     let store: ClipboardStore
 
@@ -35,25 +37,50 @@ final class ClipboardPanelModel: ObservableObject {
         items = store.items(matching: query, limit: 200)
         snippets = store.snippets()
         paused = ClipboardPreferences.paused
-        if let selectedID, items.contains(where: { $0.id == selectedID }) {
+        let keys = rowKeys
+        if let selectedKey, keys.contains(selectedKey) {
             // keep the selection
         } else {
-            selectedID = items.first?.id
+            selectedKey = keys.first
         }
     }
 
-    /// Move the keyboard selection by `delta` rows (wrapping).
-    func moveSelection(_ delta: Int) {
-        guard !items.isEmpty else { return }
-        let current = items.firstIndex { $0.id == selectedID } ?? (delta > 0 ? -1 : 0)
-        let next = min(max(current + delta, 0), items.count - 1)
-        selectedID = items[next].id
+    // MARK: - Row selection (snippets first, then history)
+
+    static func snippetKey(_ snippet: Snippet) -> String { "s\(snippet.id)" }
+    static func itemKey(_ item: ClipboardItem) -> String { "h\(item.id)" }
+
+    private var rowKeys: [String] {
+        snippets.map(Self.snippetKey) + items.map(Self.itemKey)
     }
 
-    /// Paste the highlighted row (Return).
+    /// Move the keyboard selection by `delta` rows across snippets and history.
+    func moveSelection(_ delta: Int) {
+        let keys = rowKeys
+        guard !keys.isEmpty else { selectedKey = nil; return }
+        let current = keys.firstIndex(of: selectedKey ?? "") ?? (delta > 0 ? -1 : 0)
+        let next = min(max(current + delta, 0), keys.count - 1)
+        selectedKey = keys[next]
+    }
+
+    /// Paste the highlighted row through the same validated path (Return).
     func activateSelection() {
-        guard let item = items.first(where: { $0.id == selectedID }) ?? items.first else { return }
-        onPaste?(item)
+        guard let key = selectedKey else { return }
+        if key.hasPrefix("s"), let id = Int64(String(key.dropFirst())),
+           let snippet = snippets.first(where: { $0.id == id }) {
+            onPaste?(snippetItem(snippet))
+        } else if key.hasPrefix("h"), let id = Int64(String(key.dropFirst())),
+                  let item = items.first(where: { $0.id == id }) {
+            onPaste?(item)
+        }
+    }
+
+    /// A snippet as a pasteboard entry, so it travels the same validated paste
+    /// path as a history row.
+    func snippetItem(_ snippet: Snippet) -> ClipboardItem {
+        ClipboardItem(kind: .text, text: snippet.text,
+                      contentHash: ClipboardPolicyEngine.dedupeKey(
+                        kind: .text, text: snippet.text, imageDigest: nil))
     }
 
     func setQuery(_ text: String) {
@@ -174,8 +201,9 @@ struct ClipboardPanelView: View {
                             .padding(.horizontal, 12).padding(.vertical, 16)
                     }
                     ForEach(model.items) { item in
-                        row(id: item.id, icon: icon(for: item), text: item.singleLine(),
+                        row(icon: icon(for: item), text: item.singleLine(),
                             subtitle: subtitle(for: item),
+                            isSelected: model.selectedKey == ClipboardPanelModel.itemKey(item),
                             trailing: AnyView(actions(for: item)),
                             onTap: { model.onPaste?(item) })
                     }
@@ -232,29 +260,34 @@ struct ClipboardPanelView: View {
             .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 2)
     }
 
-    private func row(id: Int64, icon: String, text: String, subtitle: String?,
-                     trailing: AnyView?, onTap: @escaping () -> Void) -> some View {
-        Button(action: onTap) {
-            HStack(spacing: 9) {
-                Image(systemName: icon)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 16)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(text).font(.system(size: 12)).lineLimit(2)
-                    if let subtitle {
-                        Text(subtitle).font(.system(size: 10))
-                            .foregroundStyle(.secondary).lineLimit(1)
+    /// A history row. The main area is its own Button; the trailing action
+    /// buttons sit OUTSIDE it as siblings, so tapping pin/delete/save can never
+    /// also trigger a paste.
+    private func row(icon: String, text: String, subtitle: String?,
+                     isSelected: Bool, trailing: AnyView?, onTap: @escaping () -> Void) -> some View {
+        HStack(spacing: 9) {
+            Button(action: onTap) {
+                HStack(spacing: 9) {
+                    Image(systemName: icon)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(text).font(.system(size: 12)).lineLimit(2)
+                        if let subtitle {
+                            Text(subtitle).font(.system(size: 10))
+                                .foregroundStyle(.secondary).lineLimit(1)
+                        }
                     }
+                    Spacer(minLength: 4)
                 }
-                Spacer(minLength: 4)
-                if let trailing { trailing }
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(model.selectedID == id ? Color.accentColor.opacity(0.12) : Color.clear)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            if let trailing { trailing }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
     }
 
     private var snippetEditor: some View {
@@ -280,27 +313,32 @@ struct ClipboardPanelView: View {
         .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
-    private func snippetItem(_ snippet: Snippet) -> ClipboardItem {
-        ClipboardItem(kind: .text, text: snippet.text,
-                      contentHash: ClipboardPolicyEngine.dedupeKey(
-                        kind: .text, text: snippet.text, imageDigest: nil))
-    }
-
     private func snippetRow(_ snippet: Snippet) -> some View {
         HStack(spacing: 9) {
-            Image(systemName: "pin.fill")
-                .font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 16)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(snippet.title.isEmpty ? snippet.text : snippet.title)
-                    .font(.system(size: 12)).lineLimit(1)
-                if !snippet.title.isEmpty {
-                    Text(snippet.text).font(.system(size: 10))
-                        .foregroundStyle(.secondary).lineLimit(1)
+            // The paste area is its own Button; the action buttons are siblings,
+            // so an edit/delete/reorder tap can never also paste.
+            Button {
+                model.onPaste?(model.snippetItem(snippet))
+            } label: {
+                HStack(spacing: 9) {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 16)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(snippet.title.isEmpty ? snippet.text : snippet.title)
+                            .font(.system(size: 12)).lineLimit(1)
+                        if !snippet.title.isEmpty {
+                            Text(snippet.text).font(.system(size: 10))
+                                .foregroundStyle(.secondary).lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 4)
                 }
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 4)
+            .buttonStyle(.plain)
+
             HStack(spacing: 6) {
-                Button { model.onCopy?(snippetItem(snippet)) } label: {
+                Button { model.onCopy?(model.snippetItem(snippet)) } label: {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.plain).help(L("clipboard.copy"))
@@ -326,10 +364,8 @@ struct ClipboardPanelView: View {
             .font(.system(size: 11)).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12).padding(.vertical, 6)
-        .contentShape(Rectangle())
-        // A click on the row pastes through the same validated path as a history
-        // entry; the explicit copy button above is the copy-only alternative.
-        .onTapGesture { model.onPaste?(snippetItem(snippet)) }
+        .background(model.selectedKey == ClipboardPanelModel.snippetKey(snippet)
+                        ? Color.accentColor.opacity(0.12) : Color.clear)
     }
 
     private func actions(for item: ClipboardItem) -> some View {

@@ -180,8 +180,10 @@ final class ContextRouter {
     ///     we write, or fall back to a synthesised ⌘V. On any mismatch the entry
     ///     is copied and the user is told — nothing is typed into another window.
     private func paste(_ item: ClipboardItem) {
-        guard let text = item.text, !text.isEmpty else {
-            // Images cannot be pasted through a text field; copy them instead.
+        // Images have no text to write through AX, but can still be pasted into a
+        // confirmed target through a transient clipboard.
+        let isImage = item.kind == .image
+        if !isImage, (item.text?.isEmpty ?? true) {
             copyOnly(item)
             return
         }
@@ -207,13 +209,13 @@ final class ContextRouter {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
             guard let self, self.generation == pasteGeneration else { return }
-            self.finishPaste(text, item: item, captured: captured)
+            self.finishPaste(item: item, captured: captured)
         }
     }
 
     /// Re-read the system focus after it has been restored and only proceed when
     /// it is the captured element.
-    private func finishPaste(_ text: String, item: ClipboardItem, captured: AXUIElement) {
+    private func finishPaste(item: ClipboardItem, captured: AXUIElement) {
         let current = FocusedInputInspector.focusedElement()
         guard let current, FocusedInputInspector.isSameElement(current, captured) else {
             log.info("focus did not return to the captured element — copying only")
@@ -221,24 +223,57 @@ final class ContextRouter {
             return
         }
 
-        // Preferred: a position-correct accessibility write.
-        if FocusedInputInspector.writeText(text, to: current) {
+        // Text: prefer a position-correct accessibility write.
+        if let text = item.text, !text.isEmpty,
+           FocusedInputInspector.writeText(text, to: current) {
             store.markUsed(id: item.id)
             log.info("pasted via AX (\(text.count) chars)")
             return
         }
 
-        // Focus is confirmed, so a transient-clipboard ⌘V lands in the right place.
-        synthesizePaste(text, item: item)
+        // Text write refused, or the entry is an image: paste through a transient
+        // clipboard. Focus is confirmed, so it lands in the right place.
+        synthesizePaste(item: item)
     }
 
-    private func synthesizePaste(_ text: String, item: ClipboardItem) {
+    /// What goes on the pasteboard for a synthesised paste.
+    private enum PasteboardPayload {
+        case text(String)
+        case image(Data)
+
+        func write(to pasteboard: NSPasteboard) {
+            switch self {
+            case .text(let string): pasteboard.setString(string, forType: .string)
+            case .image(let data): pasteboard.setData(data, forType: .png)
+            }
+        }
+    }
+
+    private func payload(for item: ClipboardItem) -> PasteboardPayload? {
+        if item.kind == .image {
+            guard let path = item.blobPath,
+                  let data = try? Data(contentsOf: store.blobURL(for: path)) else { return nil }
+            return .image(data)
+        }
+        guard let text = item.text, !text.isEmpty else { return nil }
+        return .text(text)
+    }
+
+    private func synthesizePaste(item: ClipboardItem) {
+        guard let payload = payload(for: item) else {
+            copyOnly(item)
+            return
+        }
         let backup = Pasteboard.backup()
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        payload.write(to: pasteboard)
         // Tag it transient so the watcher (and compliant managers) skip it.
         pasteboard.setData(Data(), forType: Pasteboard.Marker.transient)
+        // Remember exactly what our write produced: if the count moved again by
+        // the time we would restore, the user copied something of their own and
+        // their clipboard must win.
+        let ourChangeCount = pasteboard.changeCount
         watcher.resync()
 
         // Focus was already restored and verified; post the paste without
@@ -247,7 +282,11 @@ final class ContextRouter {
         store.markUsed(id: item.id)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self else { return }
-            Pasteboard.restore(backup)
+            if NSPasteboard.general.changeCount == ourChangeCount {
+                Pasteboard.restore(backup)
+            } else {
+                self.log.info("clipboard changed after our paste — not restoring")
+            }
             self.watcher.resync()
         }
     }

@@ -5,14 +5,14 @@ to be updated as work lands.
 
 ## Verified
 
-- **Pure logic unit tests pass** (39 tests): three-scene routing
-  (`ContextRoutingTests`, including the stale-PID check), the double-tap Command
-  detector (`ModifierDoubleTapTests`), UTF-16 text insertion
-  (`TextInsertionTests`), clipboard policy (`ClipboardPolicyTests`) and the
-  clipboard SQLite store (`ClipboardStoreTests` — round trip, de-duplication,
-  pinning, retention, capacity, search, snippets and snippet reordering). These
-  were compiled and run with a Swift 5.10 toolchain; the store tests ran against
-  the system SQLite.
+- **Pure logic unit tests pass** (41 tests): three-scene routing
+  (`ContextRoutingTests`, including editable detection and the stale-PID check),
+  the double-tap Command detector (`ModifierDoubleTapTests`), UTF-16 text
+  insertion (`TextInsertionTests`), clipboard policy (`ClipboardPolicyTests`) and
+  the clipboard SQLite store (`ClipboardStoreTests` — round trip,
+  de-duplication, pinning, retention, capacity, search, snippets and snippet
+  reordering). These were compiled and run with a Swift 5.10 toolchain; the
+  store tests ran against the system SQLite.
 - **Every Swift file parses** (`swiftc -parse` over all sources).
 - **`project.yml` and the GitHub Actions workflow are valid YAML**, and
   `ConfigSchema.json` is valid JSON.
@@ -29,9 +29,11 @@ to be updated as work lands.
 
 ## Deliberately conservative behaviour
 
-- `FocusedInputInspector.browserFallbackEnabled` is **false**: automatic pasting
-  into browser/Electron text fields is off until a real-desktop pass records
-  success in `docs/ACCEPTANCE.md`.
+- Editable detection for scenario 2 is **known text role + a writable attribute
+  (`AXSelectedText` or `AXValue`) + enabled + non-secure**. The non-standard
+  `AXEditable` attribute and the browser/Electron flag are only extra evidence;
+  a role alone never leads to a paste. This is what lets browser search boxes
+  and WeChat inputs reach the clipboard panel without trusting `AXEditable`.
 - Unknown or unreadable focus never enters scenario 2; it falls through to the
   search box.
 - Secure/password focus is never read; secure keyboard entry pauses both the
@@ -60,3 +62,12 @@ to be updated as work lands.
   settles. The write (or the synthesised ⌘V) only happens when the focused
   element is the *same* AX element (pid + identity). Any mismatch copies the
   entry and shows a toast instead.
+- The transient clipboard used for a synthesised paste is only restored when the
+  pasteboard's `changeCount` still matches the count Mtool's own write produced,
+  so a copy the user makes in that window is never overwritten.
+- Image entries can be pasted through the same confirmed-focus transient
+  clipboard (the AX text write is skipped for them); if the target cannot be
+  re-validated they are copied only.
+- Snippets and history share one ↑/↓/Enter navigation order (snippets first), the
+  editor owns the keyboard while open, and every row's paste area is a separate
+  control from its action buttons.

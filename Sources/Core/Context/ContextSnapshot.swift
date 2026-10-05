@@ -42,15 +42,30 @@ struct FocusedInputInfo: Equatable {
         selectedTextSettable: false, valueSettable: false,
         isSecure: true, isBrowserOrElectronFallback: false)
 
+    /// Accessibility roles that hold editable text. Chrome/Electron text fields
+    /// and WeChat's compose box are `AXTextField` / `AXTextArea` / `AXSearchField`
+    /// and are reliably identified by role **plus** a writable attribute; the
+    /// non-standard `AXEditable` attribute is only extra evidence, because many
+    /// of those apps never expose it.
+    static let textInputRoles: Set<String> = [
+        "AXTextField", "AXTextArea", "AXComboBox", "AXSearchField",
+    ]
+
     /// Whether this element should be treated as an editable text control for
-    /// scenario 2. Deliberately strict: enabled, not secure, and either an
-    /// explicit editable attribute or a writable value attribute, or a positively
-    /// verified browser/Electron fallback.
+    /// scenario 2.
+    ///
+    /// A role alone is never enough to paste into: the element must also expose a
+    /// writable attribute (`AXSelectedText` or `AXValue`), be enabled and not be a
+    /// secure field. Given that, a known text role is the reliable signal;
+    /// `AXEditable` and the browser/Electron flag are accepted as additional
+    /// positive evidence for controls whose role is unfamiliar.
     var looksEditable: Bool {
         guard !isSecure, enabled else { return false }
-        if isBrowserOrElectronFallback { return true }
-        guard editable else { return false }
-        return selectedTextSettable || valueSettable
+        let writable = selectedTextSettable || valueSettable
+        guard writable else { return false }
+        if let role, Self.textInputRoles.contains(role) { return true }
+        if editable { return true }
+        return isBrowserOrElectronFallback
     }
 }
 
