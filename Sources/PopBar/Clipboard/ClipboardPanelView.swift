@@ -17,6 +17,7 @@ final class ClipboardPanelModel: ObservableObject {
     /// for a history entry. Snippets come first, matching the visual order, so
     /// ↑/↓ can move through both groups.
     @Published var selectedKey: String?
+    @Published var toolbarSelection: String = "clipboard"
 
     let store: ClipboardStore
 
@@ -79,6 +80,22 @@ final class ClipboardPanelModel: ObservableObject {
         } else if key.hasPrefix("h"), let id = Int64(String(key.dropFirst())),
                   let item = items.first(where: { $0.id == id }) {
             onPaste?(item)
+        }
+    }
+
+    private var toolbarIDs: [String] { ["screenshot", "clipboard"] + modes.map(\.id) }
+
+    func moveToolbarSelection(_ delta: Int) {
+        let ids = toolbarIDs
+        let current = ids.firstIndex(of: toolbarSelection) ?? 1
+        toolbarSelection = ids[(current + delta + ids.count) % ids.count]
+    }
+
+    func activateToolbarSelection() {
+        switch toolbarSelection {
+        case "screenshot": onScreenshotRequested?()
+        case "clipboard": activateSelection()
+        default: onModeRequested?(toolbarSelection)
         }
     }
 
@@ -172,8 +189,19 @@ struct ClipboardPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            FloatingPanelDragHandle()
+                .frame(maxWidth: .infinity)
+                .frame(height: 15)
+                .overlay {
+                    Capsule().fill(Color.secondary.opacity(0.35))
+                        .frame(width: 30, height: 4)
+                        .allowsHitTesting(false)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 3)
             header
             Divider()
+            ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if model.isEditing {
@@ -184,6 +212,7 @@ struct ClipboardPanelView: View {
                         sectionHeader(L("clipboard.snippets"))
                         ForEach(model.snippets) { snippet in
                             snippetRow(snippet)
+                                .id(ClipboardPanelModel.snippetKey(snippet))
                         }
                         Divider().padding(.vertical, 4)
                     }
@@ -200,13 +229,19 @@ struct ClipboardPanelView: View {
                             isSelected: model.selectedKey == ClipboardPanelModel.itemKey(item),
                             trailing: AnyView(actions(for: item)),
                             onTap: { model.onPaste?(item) })
+                            .id(ClipboardPanelModel.itemKey(item))
                     }
                 }
+            }
+            .onChange(of: model.selectedKey) { selected in
+                guard let selected else { return }
+                withAnimation { proxy.scrollTo(selected, anchor: .center) }
+            }
             }
             Divider()
             footer
         }
-        .frame(width: 560, height: 400)
+        .frame(width: 560, height: 418)
         .background(Color(nsColor: .windowBackgroundColor))
         .overlay { imagePreviewOverlay }
         .onAppear {
@@ -251,6 +286,7 @@ struct ClipboardPanelView: View {
 
     private var footer: some View {
         VStack(spacing: 4) {
+            ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     Button { model.onScreenshotRequested?() } label: {
@@ -259,10 +295,15 @@ struct ClipboardPanelView: View {
                             .padding(.horizontal, 9).padding(.vertical, 5)
                     }
                     .buttonStyle(.plain)
+                    .background(model.toolbarSelection == "screenshot" ? Color.accentColor.opacity(0.18) : Color.clear,
+                                in: Capsule())
+                    .id("screenshot")
                     Label(L("search.clipboard"), systemImage: "doc.on.clipboard")
                         .font(.system(size: 11, weight: .semibold))
                         .padding(.horizontal, 9).padding(.vertical, 5)
-                        .background(Color.accentColor.opacity(0.14), in: Capsule())
+                        .background(model.toolbarSelection == "clipboard" ? Color.accentColor.opacity(0.18) : Color.clear,
+                                    in: Capsule())
+                        .id("clipboard")
                     ForEach(model.modes) { mode in
                         Button { model.onModeRequested?(mode.id) } label: {
                             Text(mode.title)
@@ -270,9 +311,16 @@ struct ClipboardPanelView: View {
                                 .padding(.horizontal, 9).padding(.vertical, 5)
                         }
                         .buttonStyle(.plain)
+                        .background(model.toolbarSelection == mode.id ? Color.accentColor.opacity(0.18) : Color.clear,
+                                    in: Capsule())
                         .help(mode.title)
+                        .id(mode.id)
                     }
                 }
+            }
+            .onChange(of: model.toolbarSelection) { selected in
+                withAnimation { proxy.scrollTo(selected, anchor: .center) }
+            }
             }
             HStack {
                 Text(model.paused ? L("clipboard.paused") :

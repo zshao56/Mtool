@@ -32,6 +32,7 @@ final class SearchPanelModel: ObservableObject {
     @Published var query: String = ""
     @Published var modes: [SearchMode] = []
     @Published var selectedModeID: String = "ask"
+    @Published var toolbarSelection: String = "ask"
     @Published var result: String = ""
     @Published var busy: Bool = false
     @Published var error: String?
@@ -57,6 +58,7 @@ final class SearchPanelModel: ObservableObject {
         result = ""
         error = nil
         busy = false
+        toolbarSelection = "ask"
         onResize?()
     }
 
@@ -83,6 +85,30 @@ final class SearchPanelModel: ObservableObject {
         busy = true
         onSubmit?(text, selectedMode)
         onResize?()
+    }
+
+    private var toolbarIDs: [String] {
+        ["screenshot"] + (showsClipboardButton ? ["clipboard"] : []) + modes.map(\.id)
+    }
+
+    func moveToolbarSelection(_ delta: Int) {
+        let ids = toolbarIDs
+        guard !ids.isEmpty else { return }
+        let current = ids.firstIndex(of: toolbarSelection) ?? 0
+        toolbarSelection = ids[(current + delta + ids.count) % ids.count]
+        if modes.contains(where: { $0.id == toolbarSelection }) {
+            selectedModeID = toolbarSelection
+        }
+    }
+
+    func activateToolbarSelection() {
+        switch toolbarSelection {
+        case "screenshot": onScreenshot?()
+        case "clipboard": onClipboard?()
+        default:
+            selectedModeID = toolbarSelection
+            submit()
+        }
     }
 
     func appendStream(_ text: String) {
@@ -136,6 +162,8 @@ struct SearchPanelView: View {
                         .font(.system(size: 12))
                 }
                 .buttonStyle(.plain)
+                .background(model.toolbarSelection == "screenshot" ? Color.accentColor.opacity(0.18) : Color.clear,
+                            in: Capsule())
                 .help(L("search.screenshot"))
 
                 if model.showsClipboardButton {
@@ -144,27 +172,36 @@ struct SearchPanelView: View {
                             .font(.system(size: 12))
                     }
                     .buttonStyle(.plain)
+                    .background(model.toolbarSelection == "clipboard" ? Color.accentColor.opacity(0.18) : Color.clear,
+                                in: Capsule())
                     .help(L("search.clipboard"))
                 }
 
+                ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(model.modes) { mode in
                             Button {
                                 model.selectedModeID = mode.id
+                                model.toolbarSelection = mode.id
                                 queryFocused = true
                             } label: {
                                 Text(mode.title)
                                     .font(.system(size: 12, weight: model.selectedModeID == mode.id ? .semibold : .regular))
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
-                                    .background(model.selectedModeID == mode.id ? Color.accentColor.opacity(0.14) : Color.clear,
+                                    .background(model.toolbarSelection == mode.id ? Color.accentColor.opacity(0.18) : Color.clear,
                                                 in: Capsule())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(mode.title)
+                            .id(mode.id)
                         }
                     }
+                }
+                .onChange(of: model.toolbarSelection) { selected in
+                    withAnimation { proxy.scrollTo(selected, anchor: .center) }
+                }
                 }
                 .frame(maxWidth: .infinity)
 
@@ -225,7 +262,7 @@ struct SearchPanelView: View {
 }
 
 /// A dedicated drag strip, clear of the text field and mode buttons.
-private struct FloatingPanelDragHandle: NSViewRepresentable {
+struct FloatingPanelDragHandle: NSViewRepresentable {
     func makeNSView(context: Context) -> DragView { DragView() }
     func updateNSView(_ nsView: DragView, context: Context) {}
 

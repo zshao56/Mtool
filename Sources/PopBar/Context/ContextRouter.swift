@@ -208,9 +208,7 @@ final class ContextRouter {
         self.snapshotElement = element
         panelAnchor = anchor
 
-        let routed = ContextRouting.scene(for: snap,
-                                          focusedElementAvailable: element != nil,
-                                          secureInputActive: FocusedInputInspector.isSecureInputActive())
+        let routed = ContextRouting.scene(for: snap)
         scene = routed
         Self.log.info("routed scene=\(routed.rawValue) selected=\(ContextRouting.hasActionableSelection(result?.text)) editable=\(snap.focused?.looksEditable ?? false)")
 

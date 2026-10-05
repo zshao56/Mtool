@@ -46,18 +46,10 @@ final class ContextRoutingTests: XCTestCase {
         XCTAssertEqual(ContextRouting.scene(for: snapshot), .search)
     }
 
-    func testWeChatWithoutAccessibleFocusStartsInClipboardButSecureInputDoesNot() {
+    func testWeChatWithoutAccessibleFocusOpensQuestionBox() {
         let snapshot = ContextSnapshot(frontAppBundleID: "com.tencent.xinWeChat",
                                        selectedText: nil, focused: .unknown)
-        XCTAssertEqual(ContextRouting.scene(for: snapshot,
-                                            focusedElementAvailable: false,
-                                            secureInputActive: false), .clipboard)
-        XCTAssertEqual(ContextRouting.scene(for: snapshot,
-                                            focusedElementAvailable: false,
-                                            secureInputActive: true), .search)
-        XCTAssertEqual(ContextRouting.scene(for: snapshot,
-                                            focusedElementAvailable: true,
-                                            secureInputActive: false), .search)
+        XCTAssertEqual(ContextRouting.scene(for: snapshot), .search)
     }
 
     func testUnknownElementIsNeverEditable() {

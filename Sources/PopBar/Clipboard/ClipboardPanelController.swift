@@ -30,6 +30,7 @@ final class ClipboardPanelController {
         let panel = ensurePanel()
         model.previewItem = nil
         model.query = ""
+        model.toolbarSelection = "clipboard"
         // Refresh before showing so the list is current.
         model.reload()
         position(panel, near: anchor)
@@ -58,7 +59,7 @@ final class ClipboardPanelController {
         if let panel { return panel }
         let hosting = NSHostingController(rootView: ClipboardPanelView(model: model))
         let panel = MtoolFloatingPanel(contentViewController: hosting)
-        panel.setContentSize(NSSize(width: 560, height: 400))
+        panel.setContentSize(NSSize(width: 560, height: 418))
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.animationBehavior = .utilityWindow
@@ -109,18 +110,29 @@ final class ClipboardPanelController {
                 }
                 return event
             }
+            if !event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty {
+                return event
+            }
             switch event.keyCode {
             case 53:   // Esc
                 self.onCloseRequested?()
                 return nil
             case 126:  // Up
+                self.model.toolbarSelection = "clipboard"
                 self.model.moveSelection(-1)
                 return nil
             case 125:  // Down
+                self.model.toolbarSelection = "clipboard"
                 self.model.moveSelection(1)
                 return nil
+            case 123:  // Left
+                self.model.moveToolbarSelection(-1)
+                return nil
+            case 124:  // Right
+                self.model.moveToolbarSelection(1)
+                return nil
             case 36, 76:   // Return / Enter
-                self.model.activateSelection()
+                self.model.activateToolbarSelection()
                 return nil
             default:
                 return event

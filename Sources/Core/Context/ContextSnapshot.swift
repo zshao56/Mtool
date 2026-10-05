@@ -132,20 +132,6 @@ enum ContextRouting {
         return .search
     }
 
-    /// When WeChat does not expose any focused AX element, favour the clipboard
-    /// page as a UI starting point. This does not declare the target editable:
-    /// paste still requires a separately captured, validated AX element.
-    static func scene(for snapshot: ContextSnapshot,
-                      focusedElementAvailable: Bool,
-                      secureInputActive: Bool) -> ContextScene {
-        let resolved = scene(for: snapshot)
-        if resolved == .search, !focusedElementAvailable, !secureInputActive,
-           snapshot.frontAppBundleID == "com.tencent.xinWeChat" {
-            return .clipboard
-        }
-        return resolved
-    }
-
     /// Whether an async selection read is still for the app that was frontmost
     /// when the shortcut was pressed. The read is asynchronous, so the user may
     /// have switched apps while it was in flight; a result for the old app must

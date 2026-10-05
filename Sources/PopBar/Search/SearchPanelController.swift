@@ -45,8 +45,10 @@ final class SearchPanelController {
         model.loadModes(from: actionStore.actions)
         if let selectedModeID, model.modes.contains(where: { $0.id == selectedModeID }) {
             model.selectedModeID = selectedModeID
+            model.toolbarSelection = selectedModeID
         } else {
             model.selectedModeID = "ask"
+            model.toolbarSelection = "ask"
         }
         position(panel, near: anchor)
         // Activate so the query field can take keystrokes.
@@ -174,9 +176,19 @@ final class SearchPanelController {
     private func installEscMonitor() {
         guard escapeMonitor == nil else { return }
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
             if event.keyCode == 53 {   // Esc
-                self?.onCloseRequested?()
+                self.onCloseRequested?()
                 return nil
+            }
+            if !event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty {
+                return event
+            }
+            switch event.keyCode {
+            case 123: self.model.moveToolbarSelection(-1); return nil
+            case 124: self.model.moveToolbarSelection(1); return nil
+            case 36, 76: self.model.activateToolbarSelection(); return nil
+            default: break
             }
             return event
         }
