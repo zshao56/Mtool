@@ -30,6 +30,7 @@ final class LLMSettingsStore: ObservableObject {
     @Published private(set) var reasoningEffort: String
     /// Providers that currently have a key stored (drives the settings UI).
     @Published private(set) var keyedProviders: Set<String> = []
+    private let keychainQueue = DispatchQueue(label: "llm.keychain.refresh", qos: .utility)
 
     init() {
         // Bring forward any keys saved under PopBar's old service BEFORE reading
@@ -114,7 +115,14 @@ final class LLMSettingsStore: ObservableObject {
     // MARK: - Internals
 
     private func refreshKeyedProviders() {
-        keyedProviders = keys.keyedProviders()
+        // A changed ad-hoc signature can make macOS ask to unlock an existing
+        // Keychain item. Never hold application launch (or the settings view)
+        // on that modal security decision.
+        keychainQueue.async { [weak self] in
+            guard let self else { return }
+            let providers = self.keys.keyedProviders()
+            DispatchQueue.main.async { [weak self] in self?.keyedProviders = providers }
+        }
     }
 
     private func persist() {
