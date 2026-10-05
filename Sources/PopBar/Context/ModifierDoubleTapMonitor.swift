@@ -39,7 +39,7 @@ final class ModifierDoubleTapMonitor {
     func start() {
         guard !isRunning else { return }
         guard AccessibilityAuthorizer.isTrusted else {
-            log.warn("no Accessibility permission — double-Command cannot be captured")
+            Self.log.warn("no Accessibility permission — double-Command cannot be captured")
             onAvailabilityChanged?(false)
             return
         }
@@ -59,7 +59,7 @@ final class ModifierDoubleTapMonitor {
         })
 
         isRunning = globalFlags != nil
-        log.info("double-Command monitor \(isRunning ? "installed" : "unavailable (no event stream)")")
+        Self.log.info("double-Command monitor \(isRunning ? "installed" : "unavailable (no event stream)")")
         onAvailabilityChanged?(isRunning)
     }
 
@@ -101,7 +101,7 @@ final class ModifierDoubleTapMonitor {
         } else if !commandDown && commandWasDown {
             let completed = detector.handle(.commandUp, at: now)
             if completed {
-                log.info("double-Command detected")
+                Self.log.info("double-Command detected")
                 onTriggered?()
             }
         }

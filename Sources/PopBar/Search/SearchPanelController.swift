@@ -39,7 +39,7 @@ final class SearchPanelController {
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         installEscMonitor()
-        log.debug("search panel shown")
+        Self.log.debug("search panel shown")
     }
 
     func hide() {
@@ -55,7 +55,7 @@ final class SearchPanelController {
         onCloseRequested?()   // the plan: clicking screenshot closes the search box first
         screenshot.begin { ok in
             if ok == false {
-                self.log.info("screenshot not copied (permission or capture failure)")
+                Self.log.info("screenshot not copied (permission or capture failure)")
             }
         }
     }

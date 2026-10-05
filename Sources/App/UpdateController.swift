@@ -17,7 +17,7 @@ final class UpdateController: NSObject {
 
     @objc func checkForUpdates(_ sender: Any?) {
         guard let url = Brand.repoURL?.appendingPathComponent("releases") else { return }
-        log.info("no auto-updater — opening \(url.absoluteString)")
+        Self.log.info("no auto-updater — opening \(url.absoluteString)")
         NSWorkspace.shared.open(url)
     }
 

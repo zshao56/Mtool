@@ -133,7 +133,7 @@ final class ContextRouter {
                anchor: CGPoint) {
         // Ignore a read that belongs to an older generation.
         guard snapshot.generation == generation else {
-            log.debug("discarding stale route (gen \(snapshot.generation) ≠ \(generation))")
+            Self.log.debug("discarding stale route (gen \(snapshot.generation) ≠ \(generation))")
             return
         }
         // The read was asynchronous: if the user switched apps while it was in
@@ -141,7 +141,7 @@ final class ContextRouter {
         // must not open a panel over the new frontmost app.
         let nowPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         guard ContextRouting.isCurrent(frontPIDAtTrigger: snapshot.frontAppPID, frontPIDNow: nowPID) else {
-            log.info("discarding stale route — frontmost pid changed (\(nowPID.map(String.init) ?? "nil") ≠ \(snapshot.frontAppPID.map(String.init) ?? "nil"))")
+            Self.log.info("discarding stale route — frontmost pid changed (\(nowPID.map(String.init) ?? "nil") ≠ \(snapshot.frontAppPID.map(String.init) ?? "nil"))")
             return
         }
         var snap = snapshot
@@ -151,7 +151,7 @@ final class ContextRouter {
 
         let routed = ContextRouting.scene(for: snap)
         scene = routed
-        log.info("routed scene=\(routed.rawValue) selected=\(ContextRouting.hasActionableSelection(result?.text)) editable=\(snap.focused?.looksEditable ?? false)")
+        Self.log.info("routed scene=\(routed.rawValue) selected=\(ContextRouting.hasActionableSelection(result?.text)) editable=\(snap.focused?.looksEditable ?? false)")
 
         switch routed {
         case .selection:
@@ -188,7 +188,7 @@ final class ContextRouter {
             return
         }
         guard let snap = snapshot, let pid = snap.frontAppPID, let captured = snapshotElement else {
-            log.info("no captured editable target — copying only")
+            Self.log.info("no captured editable target — copying only")
             copyOnly(item)
             return
         }
@@ -196,7 +196,7 @@ final class ContextRouter {
         guard target?.bundleIdentifier == snap.frontAppBundleID,
               !FocusedInputInspector.isSecureInputActive(),
               !FocusedInputInspector.inspect(captured).isSecure else {
-            log.info("paste target no longer valid — copying only")
+            Self.log.info("paste target no longer valid — copying only")
             copyOnly(item)
             return
         }
@@ -227,7 +227,7 @@ final class ContextRouter {
         if let front = NSWorkspace.shared.frontmostApplication {
             let frontPID = front.processIdentifier
             if frontPID != targetPID && frontPID != ownPID {
-                log.info("a different app came forward during the paste wait — copying only")
+                Self.log.info("a different app came forward during the paste wait — copying only")
                 copyOnly(item)
                 return
             }
@@ -240,7 +240,7 @@ final class ContextRouter {
         }
 
         guard Date() < deadline else {
-            log.info("focus did not return to the captured element within 1s — copying only")
+            Self.log.info("focus did not return to the captured element within 1s — copying only")
             copyOnly(item)
             return
         }
@@ -255,7 +255,7 @@ final class ContextRouter {
         if let text = item.text, !text.isEmpty,
            FocusedInputInspector.writeText(text, to: element) {
             store.markUsed(id: item.id)
-            log.info("pasted via AX (\(text.count) chars)")
+            Self.log.info("pasted via AX (\(text.count) chars)")
             return
         }
 
@@ -313,7 +313,7 @@ final class ContextRouter {
             if NSPasteboard.general.changeCount == ourChangeCount {
                 Pasteboard.restore(backup)
             } else {
-                self.log.info("clipboard changed after our paste — not restoring")
+                Self.log.info("clipboard changed after our paste — not restoring")
             }
             self.watcher.resync()
         }
@@ -332,7 +332,7 @@ final class ContextRouter {
         pasteboard.setData(Data(), forType: Pasteboard.Marker.transient)
         watcher.resync()
         RegionToast.show(L("clipboard.copied"), atGlobalCocoa: NSEvent.mouseLocation)
-        log.info("copied clipboard entry (kind \(item.kind.rawValue))")
+        Self.log.info("copied clipboard entry (kind \(item.kind.rawValue))")
         closeAll()
     }
 }

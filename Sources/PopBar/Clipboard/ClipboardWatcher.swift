@@ -41,14 +41,14 @@ final class ClipboardWatcher {
         let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in self?.poll() }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
-        log.info("clipboard watcher started")
+        Self.log.info("clipboard watcher started")
     }
 
     func stop() {
         timer?.invalidate()
         timer = nil
         isRunning = false
-        log.info("clipboard watcher stopped")
+        Self.log.info("clipboard watcher stopped")
     }
 
     /// Re-read the baseline (used after a synthetic write we do not want to store).
@@ -106,7 +106,7 @@ final class ClipboardWatcher {
            let png = pngData(from: pasteboard, types: types) {
             let policy = ClipboardPreferences.policy
             guard ClipboardPolicyEngine.shouldStoreImage(byteCount: png.count, policy: policy) else {
-                log.info("ignoring image (\(png.count) bytes) — larger than the \(policy.maxImageBytes) byte limit")
+                Self.log.info("ignoring image (\(png.count) bytes) — larger than the \(policy.maxImageBytes) byte limit")
                 return nil
             }
             let digest = ClipboardStore.digest(png)
@@ -115,7 +115,7 @@ final class ClipboardWatcher {
             do {
                 try png.write(to: url, options: .atomic)
             } catch {
-                log.error("could not write clipboard image: \(error.localizedDescription)")
+                Self.log.error("could not write clipboard image: \(error.localizedDescription)")
                 return nil
             }
             let preview = imageDescription(from: pasteboard)

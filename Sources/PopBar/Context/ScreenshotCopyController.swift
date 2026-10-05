@@ -24,7 +24,7 @@ final class ScreenshotCopyController {
     func begin(completion: ((Bool?) -> Void)? = nil) {
         guard !capturing else { return }
         guard ScreenRecordingAuthorizer.isAuthorized else {
-            log.warn("no Screen Recording permission — requesting")
+            Self.log.warn("no Screen Recording permission — requesting")
             if !ScreenRecordingAuthorizer.request() {
                 ScreenRecordingAuthorizer.openSettings()
             }
@@ -42,7 +42,7 @@ final class ScreenshotCopyController {
 
             let rect = selection.globalCocoaRect
             guard let image = ScreenCaptureService.capture(globalCocoaRect: rect, on: selection.screen) else {
-                self.log.warn("screen capture returned nil")
+                Self.log.warn("screen capture returned nil")
                 RegionToast.show(L("screenshot.copy.failed"),
                                  atGlobalCocoa: CGPoint(x: rect.midX, y: rect.maxY))
                 completion?(false)
@@ -65,7 +65,7 @@ final class ScreenshotCopyController {
 
             let anchor = CGPoint(x: rect.midX, y: rect.maxY)
             RegionToast.show(L("screenshot.copy.done"), atGlobalCocoa: anchor)
-            self.log.info("copied screenshot \(image.width)×\(image.height) to the clipboard")
+            Self.log.info("copied screenshot \(image.width)×\(image.height) to the clipboard")
             completion?(true)
         }
     }

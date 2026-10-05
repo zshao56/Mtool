@@ -37,7 +37,7 @@ final class ClipboardPanelController {
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         installEscMonitor()
-        log.debug("clipboard panel shown")
+        Self.log.debug("clipboard panel shown")
     }
 
     func hide() {
