@@ -236,6 +236,7 @@ final class ContextRouter {
         }
         pasteboard.setData(Data(), forType: Pasteboard.Marker.transient)
         watcher.resync()
+        RegionToast.show(L("clipboard.copied"), atGlobalCocoa: NSEvent.mouseLocation)
         log.info("copied clipboard entry (kind \(item.kind.rawValue))")
         closeAll()
     }

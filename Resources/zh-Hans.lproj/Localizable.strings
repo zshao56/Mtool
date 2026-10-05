@@ -658,3 +658,4 @@
 "about.license.title" = "许可证（GPL-3.0）";
 "about.derived.notice" = "Mtool 是自由软件，派生自 QDuo（© XueshiQiao），以 GNU 通用公共许可证 v3.0 发布。源码见上方仓库。";
 "about.privacy.notice" = "Mtool 不收集任何遥测数据。剪贴板历史与设置都保存在本机。";
+"clipboard.copied" = "已复制——未找到可写入的目标";

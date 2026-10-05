@@ -659,3 +659,4 @@
 "about.license.title" = "License (GPL-3.0)";
 "about.derived.notice" = "Mtool is free software, derived from QDuo (© XueshiQiao) and released under the GNU General Public License v3.0. The source is available at the repository above.";
 "about.privacy.notice" = "Mtool collects no telemetry. Clipboard history and settings stay on this Mac.";
+"clipboard.copied" = "Copied — no editable target was available";
