@@ -96,6 +96,10 @@ final class SearchPanelModel: ObservableObject {
         guard !ids.isEmpty else { return }
         let current = ids.firstIndex(of: toolbarSelection) ?? 0
         toolbarSelection = ids[(current + delta + ids.count) % ids.count]
+        if toolbarSelection == "clipboard" {
+            onClipboard?()
+            return
+        }
         if modes.contains(where: { $0.id == toolbarSelection }) {
             selectedModeID = toolbarSelection
         }

@@ -89,6 +89,11 @@ final class ClipboardPanelModel: ObservableObject {
         let ids = toolbarIDs
         let current = ids.firstIndex(of: toolbarSelection) ?? 1
         toolbarSelection = ids[(current + delta + ids.count) % ids.count]
+        // AI modes are pages: reaching one should open its question box at once.
+        // Built-in actions such as screenshot still require Return.
+        if modes.contains(where: { $0.id == toolbarSelection }) {
+            onModeRequested?(toolbarSelection)
+        }
     }
 
     func activateToolbarSelection() {
