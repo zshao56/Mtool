@@ -1,6 +1,16 @@
 import SwiftUI
 import AppKit
 
+enum SearchPanelLayout {
+    static let width: CGFloat = 560
+    static let compactHeight: CGFloat = 160
+    static let expandedHeight: CGFloat = 370
+
+    static func size(showsOutput: Bool) -> NSSize {
+        NSSize(width: width, height: showsOutput ? expandedHeight : compactHeight)
+    }
+}
+
 /// One selectable mode under the search box. Built from the user's AI actions so
 /// the modes and the action bar share one source of truth, plus a built-in "Ask"
 /// mode for a free question.
@@ -70,7 +80,6 @@ final class SearchPanelModel: ObservableObject {
 
     func appendStream(_ text: String) {
         result = text
-        onResize?()
     }
 
     func finish(result: String?, error: String?) {
@@ -169,7 +178,8 @@ struct SearchPanelView: View {
                 .frame(height: 200)
             }
         }
-        .frame(width: 560, height: model.showsOutput ? 370 : 160)
+        .frame(width: SearchPanelLayout.width,
+               height: model.showsOutput ? SearchPanelLayout.expandedHeight : SearchPanelLayout.compactHeight)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .onAppear { queryFocused = true }

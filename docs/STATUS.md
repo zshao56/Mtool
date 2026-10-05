@@ -5,12 +5,12 @@ to be updated as work lands.
 
 ## Verified
 
-- **Automated CI build and unit tests pass** (commit `fbc200f`, GitHub Actions run `37259409559` on 2026-10-05):
-  - `xcodebuild test` executed 151 unit tests with **0 failures** on macOS runner.
+- **Automated CI build and unit tests pass** (commit `a094a42`, GitHub Actions run `37262310203` on 2026-10-05):
+  - `xcodebuild test` executed 156 unit tests with **0 failures** on macOS runner.
   - Release build succeeded (universal binary for `x86_64` and `arm64`).
   - `Mtool.dmg` produced as a workflow artifact; the app uses an ad-hoc signature, not an Apple Developer ID signature.
 - **Artifact integrity verified locally after download**:
-  - `shasum -a 256 -c` verified (SHA-256: `992b520b6165f1954b2fdbec9742d5ee30e5116fd68c545723542d779cb57444`).
+  - `shasum -a 256 -c` verified (SHA-256: `069db596960b61da2c1dccf87ddbf2e7d379907af5d891feba8403eed6d3910a`).
   - `hdiutil verify` confirmed valid disk image.
   - DMG volume structure contains `Mtool.app` and `/Applications` shortcut.
   - Ad-hoc signature passes `codesign --verify --deep --strict`.

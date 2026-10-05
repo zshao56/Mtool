@@ -16,6 +16,7 @@ final class SearchPanelController {
     private var escapeMonitor: Any?
     private var resignObserver: NSObjectProtocol?
     private var streamTask: Task<Void, Never>?
+    private var lastAnchor: CGPoint?
 
     var onCloseRequested: (() -> Void)?
 
@@ -33,6 +34,7 @@ final class SearchPanelController {
 
     func show(near anchor: CGPoint) {
         let panel = ensurePanel()
+        lastAnchor = anchor
         model.resetForOpen()
         // Refresh the mode list from the current actions each time it opens.
         model.loadModes(from: actionStore.actions)
@@ -97,7 +99,7 @@ final class SearchPanelController {
         if let panel { return panel }
         let hosting = NSHostingController(rootView: SearchPanelView(model: model))
         let panel = MtoolFloatingPanel(contentViewController: hosting)
-        panel.setContentSize(NSSize(width: 560, height: 160))
+        panel.setContentSize(SearchPanelLayout.size(showsOutput: false))
         panel.contentView?.layer?.cornerRadius = 24
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
@@ -113,13 +115,17 @@ final class SearchPanelController {
 
     private func resizePanel() {
         guard let panel else { return }
-        panel.setContentSize(NSSize(width: 560, height: model.showsOutput ? 370 : 160))
+        let target = SearchPanelLayout.size(showsOutput: model.showsOutput)
+        let current = panel.contentRect(forFrameRect: panel.frame).size
+        guard current != target else { return }
+        panel.setContentSize(target)
+        if let lastAnchor { position(panel, near: lastAnchor) }
     }
 
     private func position(_ panel: NSPanel, near anchor: CGPoint) {
         let size = panel.frame.size
         let screen = NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main ?? NSScreen.screens.first
-        guard let frame = screen?.frame else { return }
+        guard let frame = screen?.visibleFrame else { return }
         var x = anchor.x + 16
         var y = anchor.y - 40
         if x + size.width > frame.maxX - 8 { x = anchor.x - size.width - 16 }
